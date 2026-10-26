@@ -11,14 +11,7 @@ name: build-matrix
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "ci/**"
-      - "Dockerfile"
-      - "build_all.py"
-      - "build-srpm.sh"
-      - ".github/workflows/build-matrix.yml"
+
 
 permissions:
   contents: read

@@ -21,6 +21,10 @@ class ParsePackages(unittest.TestCase):
             [("mesa", {"SPEC_PATCH": "ci/x.sed", "DEFINES": "A=1"}), ("libheif", {"WITH": "x264"}), ("faac", {})],
         )
 
+    def test_quoted_option_value_keeps_its_spaces(self):
+        self.assertEqual(fetch_srpms.parse_packages('ffmpeg-9 WITH="x264 x265" DEFINES=BUILD_ORIG=1\n'),
+                         [("ffmpeg-9", {"WITH": "x264 x265", "DEFINES": "BUILD_ORIG=1"})])
+
     def test_option_without_equals_is_rejected(self):
         with self.assertRaises(ValueError):
             fetch_srpms.parse_packages("mesa NOCHECK\n")
@@ -193,6 +197,24 @@ class Stages(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out.getvalue()), {"stage1": ["faac"], "stage2": ["bad"]})
         self.assertIn("fetched noise", err.getvalue())
+
+    def test_image_build_keeps_podman_stdout_off_our_stdout(self):
+        with mock.patch.object(build_all.subprocess, "run") as run, contextlib.redirect_stdout(io.StringIO()):
+            build_all.build_image("podman")
+        self.assertIs(run.call_args.kwargs["stdout"], sys.stderr)
+
+    def test_matrix_builds_the_image_inside_the_redirect(self):
+        out, err = io.StringIO(), io.StringIO()
+        def fake_make_official(require_image):
+            print("== building image")  # what build_image prints
+            return None
+        with mock.patch.object(build_all, "load_packages", return_value=[("a", {}), ("b", {})]), \
+                mock.patch.object(build_all, "make_official", side_effect=fake_make_official), \
+                mock.patch.object(build_all, "fetch_all"), \
+                mock.patch.object(build_all, "resolve", return_value=(["a", "b"], {"a": {}, "b": {}}, {})), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            build_all.main(["--matrix"])
+        self.assertEqual(json.loads(out.getvalue()), {"stage1": ["a", "b"], "stage2": []})
 
     def test_only_selects_one_package_case_insensitively(self):
         seen = {}

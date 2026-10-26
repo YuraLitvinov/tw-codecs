@@ -327,7 +327,8 @@ def container_engine_or_none() -> str | None:
 
 def build_image(engine: str) -> None:
     print(f"== building image {IMAGE} with {engine}")
-    subprocess.run([engine, "build", "-q", "-t", IMAGE, ROOT], check=True)
+    # `build -q` prints the image id on stdout; --matrix needs stdout to carry only its JSON.
+    subprocess.run([engine, "build", "-q", "-t", IMAGE, ROOT], check=True, stdout=sys.stderr)
 
 
 def container_cmd(engine: str, name: str, srpm: str, env: dict[str, str], deps: str | None = None) -> list[str]:
@@ -491,15 +492,16 @@ def main(argv: list[str] | None = None) -> int:
                 packages = [p for p in packages if p[0].lower() == args.only.lower()]
                 if not packages:
                     raise BuildError(f"{args.only!r} is not listed in {args.packages}")
-            # With a single package there is nothing to order, so no capability queries.
-            official = None if len(packages) == 1 else make_official(require_image=not args.plan)
             if args.matrix:
                 with contextlib.redirect_stdout(sys.stderr):  # stdout carries only the JSON
+                    official = None if len(packages) == 1 else make_official(require_image=True)
                     fetch_all(packages)
                     order, edges, _ = resolve(packages, official)
                     stage1, stage2 = split_stages(order, edges)
                 print(json.dumps({"stage1": stage1, "stage2": stage2}))
                 return 0
+            # With a single package there is nothing to order, so no capability queries.
+            official = None if len(packages) == 1 else make_official(require_image=not args.plan)
             if not args.plan:
                 fetch_all(packages)
             order, edges, srpms = resolve(packages, official)
