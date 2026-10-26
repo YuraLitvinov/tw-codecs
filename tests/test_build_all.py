@@ -243,6 +243,40 @@ class Stages(unittest.TestCase):
         self.assertNotIn("DEPS_REPO=/deps", build_all.container_cmd("docker", "x", build_all.ROOT + "/s.src.rpm", {}))
 
 
+class PublicKey(unittest.TestCase):
+    PUB = b"-----BEGIN PGP PUBLIC KEY BLOCK-----\nabc\n-----END PGP PUBLIC KEY BLOCK-----\n"
+
+    def test_signing_key_wins_over_the_committed_file(self):
+        with tempfile.TemporaryDirectory() as root:
+            open(os.path.join(root, "RPM-GPG-KEY"), "wb").write(self.PUB.replace(b"abc", b"old"))
+            self.assertEqual(build_all.public_key_for_site(self.PUB, root), self.PUB)
+
+    def test_committed_file_is_the_fallback(self):
+        with tempfile.TemporaryDirectory() as root:
+            open(os.path.join(root, "RPM-GPG-KEY"), "wb").write(self.PUB)
+            self.assertEqual(build_all.public_key_for_site(None, root), self.PUB)
+
+    def test_no_key_at_all_is_none(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.assertIsNone(build_all.public_key_for_site(None, root))
+
+    def test_private_key_block_is_refused(self):
+        private = b"-----BEGIN PGP PRIVATE KEY BLOCK-----\nsecret\n-----END PGP PRIVATE KEY BLOCK-----\n"
+        with tempfile.TemporaryDirectory() as root:
+            open(os.path.join(root, "RPM-GPG-KEY"), "wb").write(private)
+            with self.assertRaises(build_all.BuildError) as ctx:
+                build_all.public_key_for_site(None, root)
+        self.assertIn("RPM-GPG-KEY", str(ctx.exception))
+
+    def test_a_public_block_that_also_holds_a_private_one_is_refused(self):
+        with self.assertRaises(build_all.BuildError):
+            build_all.check_public_key(self.PUB + b"-----BEGIN PGP PRIVATE KEY BLOCK-----\n", "x")
+
+    def test_something_that_is_not_a_key_is_refused(self):
+        with self.assertRaises(build_all.BuildError):
+            build_all.check_public_key(b"hello", "x")
+
+
 class Building(unittest.TestCase):
     def test_container_command_maps_spec_patch_into_the_container(self):
         cmd = build_all.container_cmd("podman", "mesa", os.path.join(build_all.ROOT, "srpms/Mesa-1.src.rpm"),

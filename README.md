@@ -54,12 +54,21 @@ python3 build_all.py --serve       # serve site/ on http://localhost:8080/
 Binary RPMs go to `out-all/`. Debug packages and RPMs without files are dropped.
 `site/` gets `repo/` (RPMs and `repodata`), `index.html` pages and `.nojekyll`.
 Signing: set `GPG_PRIVATE_KEY_FILE` (and `GPG_PASSPHRASE` for a protected key) to write
-`repomd.xml.asc` and `repomd.xml.key`.
+`repomd.xml.asc` and `repomd.xml.key`. The public key is published as `RPM-GPG-KEY` at
+the site root and in `repo/`: exported from the signing key when signing, otherwise a
+copy of the committed `RPM-GPG-KEY`. Only an armored public key is ever published.
 
 To try the result with zypper:
 
 ```
 sudo zypper ar -f -p 90 http://localhost:8080/repo/ tw-codecs-local
+```
+
+Against the published site, import the key first:
+
+```
+sudo rpm --import https://YuraLitvinov.github.io/tw-codecs/RPM-GPG-KEY
+sudo zypper ar -f -p 90 https://YuraLitvinov.github.io/tw-codecs/repo/ tw-codecs
 ```
 
 ## GitHub Actions

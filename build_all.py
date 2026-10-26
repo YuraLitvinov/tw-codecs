@@ -26,7 +26,9 @@ Steps (default is all of them):
 --serve           serve site/ on http://localhost:8080/ when done and print the zypper command
 
 Signing: set GPG_PRIVATE_KEY_FILE (and GPG_PASSPHRASE if the key has one) to write
-repo/repodata/repomd.xml.asc and repomd.xml.key.
+repo/repodata/repomd.xml.asc and repomd.xml.key. The public key is published as
+RPM-GPG-KEY at the site root and in repo/: exported from the signing key when signing,
+else a copy of the committed RPM-GPG-KEY.
 """
 import argparse
 import contextlib
@@ -390,10 +392,11 @@ def run_createrepo(engine_or_none: str | None, repo_dir: str) -> None:
         raise BuildError("createrepo_c is not installed and there is no container engine to run it in")
 
 
-def sign_repomd(repo_dir: str) -> bool:
+def sign_repomd(repo_dir: str) -> bytes | None:
+    """Sign repodata/repomd.xml; return the exported public key, or None when not signing."""
     key_file = os.environ.get("GPG_PRIVATE_KEY_FILE")
     if not key_file:
-        return False
+        return None
     repodata = os.path.join(repo_dir, "repodata")
     with tempfile.TemporaryDirectory() as home:
         os.chmod(home, 0o700)
@@ -412,7 +415,29 @@ def sign_repomd(repo_dir: str) -> bool:
                              f"has one): {e.stderr.decode(errors='replace').strip()}") from e
         with open(os.path.join(repodata, "repomd.xml.key"), "wb") as f:
             f.write(key)
-    return True
+    return key
+
+
+PUBLIC_KEY_HEADER = b"-----BEGIN PGP PUBLIC KEY BLOCK-----"
+
+
+def check_public_key(data: bytes, source: str) -> bytes:
+    """Only ever publish an armored public key; a private key block must never reach the site."""
+    if not data.lstrip().startswith(PUBLIC_KEY_HEADER) or b"PRIVATE" in data:
+        raise BuildError(f"{source} is not a PGP public key block (or it contains a private key); "
+                         "not publishing it")
+    return data
+
+
+def public_key_for_site(signed_key: bytes | None, root: str) -> bytes | None:
+    """The key to publish: the signing key when signing, else RPM-GPG-KEY in `root`, else None."""
+    if signed_key is not None:
+        return check_public_key(signed_key, "the exported signing key")
+    path = os.path.join(root, "RPM-GPG-KEY")
+    if os.path.isfile(path):
+        with open(path, "rb") as f:
+            return check_public_key(f.read(), path)
+    return None
 
 
 def stage_site() -> None:
@@ -430,12 +455,22 @@ def stage_site() -> None:
     with open(os.path.join(repo, "manifest.txt"), "w") as f:
         f.write("\n".join(rpms) + "\n")
     run_createrepo(container_engine_or_none(), repo)
-    signed = sign_repomd(repo)
+    signed_key = sign_repomd(repo)
+    key = public_key_for_site(signed_key, ROOT)
+    if key is not None:
+        for target in (site, repo):
+            path = os.path.join(target, "RPM-GPG-KEY")
+            with open(path, "wb") as f:
+                f.write(key)
+            os.chmod(path, 0o644)
     env = dict(os.environ, PAGES_OWNER=os.environ.get("PAGES_OWNER", "USER"),
                PAGES_REPO=os.environ.get("PAGES_REPO", "REPO"))
     subprocess.run([os.path.join(ROOT, "scripts/generate-repo-index.sh"), site],
                    check=True, env=env)
-    print(f"== staged {len(rpms)} RPMs in {SITE}/repo/ ({'signed' if signed else 'unsigned'} repomd.xml)")
+    published = "no public key published" if key is None else \
+        f"RPM-GPG-KEY from the {'signing key' if signed_key is not None else 'committed RPM-GPG-KEY'}"
+    print(f"== staged {len(rpms)} RPMs in {SITE}/repo/ "
+          f"({'signed' if signed_key is not None else 'unsigned'} repomd.xml; {published})")
 
 
 def serve() -> None:
