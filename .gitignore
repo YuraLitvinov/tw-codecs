@@ -1,0 +1,18 @@
+# Source and binary RPMs are never committed: build_all.py downloads the SRPMs
+# (openSUSE OSS, or a release of this repo) and builds the binaries.
+*.rpm
+srpms/
+vendor/
+reference/
+out*/
+site/
+build.log
+__pycache__/
+
+# Local state
+hooks_log/
+.changes-tracker/
+executable_graph.k.json
+github-pages-rpm-repo/
+.protected_files.txt
+executable_graph.k.md

@@ -1,0 +1,163 @@
+# Build every package in ci/packages.txt as its own job, then publish one zypper repo.
+#
+# A matrix cannot express "job A waits for job B", so build_all.py --matrix splits the
+# packages into two stages: stage1 has no dependency on another listed package (after
+# dropping dependencies the openSUSE and VideoLAN repos already satisfy); stage2 packages
+# need a stage1 package and get its RPMs through --deps.
+#
+# Publishing uses the Pages "GitHub Actions" source (Settings > Pages), unlike build.yml,
+# which pushes the gh-pages branch.
+name: build-matrix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ci/**"
+      - "Dockerfile"
+      - "build_all.py"
+      - "build-srpm.sh"
+      - ".github/workflows/build-matrix.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  # Never cancel a half-published repo; a second run queues.
+  group: build-matrix
+  cancel-in-progress: false
+
+env:
+  CONTAINER_ENGINE: docker
+  # Authenticates the release lookup that provides the SRPMs openSUSE does not ship.
+  GITHUB_TOKEN: ${{ github.token }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      stage1: ${{ steps.matrix.outputs.stage1 }}
+      stage2: ${{ steps.matrix.outputs.stage2 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the builder image
+        run: docker build -t srpm-builder .
+
+      - name: Plan the stages
+        id: matrix
+        run: |
+          python3 build_all.py --matrix | tee matrix.json
+          echo "stage1=$(jq -c .stage1 matrix.json)" >> "$GITHUB_OUTPUT"
+          echo "stage2=$(jq -c .stage2 matrix.json)" >> "$GITHUB_OUTPUT"
+
+  stage1:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ${{ fromJSON(needs.plan.outputs.stage1) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      - name: Build ${{ matrix.name }}
+        run: python3 build_all.py --only "${{ matrix.name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpms-${{ matrix.name }}
+          path: out-all/*.rpm
+          if-no-files-found: error
+
+  stage2:
+    needs: [plan, stage1]
+    # An empty matrix is an error, so skip the job when nothing depends on stage1.
+    if: ${{ needs.plan.outputs.stage2 != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ${{ fromJSON(needs.plan.outputs.stage2) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      - name: Download the stage1 RPMs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rpms-*
+          path: deps
+          merge-multiple: true
+
+      - name: Build ${{ matrix.name }}
+        run: python3 build_all.py --only "${{ matrix.name }}" --deps deps
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpms-${{ matrix.name }}
+          path: out-all/*.rpm
+          if-no-files-found: error
+
+  publish:
+    needs: [stage1, stage2]
+    # stage2 is skipped when empty; any failed or cancelled build stops publishing.
+    if: ${{ !cancelled() && needs.stage1.result == 'success' && (needs.stage2.result == 'success' || needs.stage2.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      PAGES_OWNER: ${{ github.repository_owner }}
+      PAGES_REPO: ${{ github.event.repository.name }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install createrepo_c
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y createrepo-c
+
+      - name: Download all RPMs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rpms-*
+          path: out-all
+          merge-multiple: true
+
+      - name: Stage the repo (signed when GPG_PRIVATE_KEY is set)
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            keyfile="$RUNNER_TEMP/signing-key.asc"
+            (umask 077; printf '%s\n' "$GPG_PRIVATE_KEY" > "$keyfile")
+            export GPG_PRIVATE_KEY_FILE="$keyfile"
+          fi
+          python3 build_all.py --stage-only
+          rm -f "$RUNNER_TEMP/signing-key.asc"
+          ls -la site/repo | head -50
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,78 @@
+name: build
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [ci/**, Dockerfile, build-srpm.sh, .github/workflows/build.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+env:
+  DEFINES: "BUILD_ORIG=1"
+  SPEC_PATCH: /in/ci/mesa-radeon.sed
+  GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+  GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the published repo (gh-pages)
+        run: |
+          url="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git clone -q --depth 1 --branch gh-pages "$url" site || mkdir site
+          rm -rf site/.git
+
+      - name: Download new source RPMs
+        id: fetch
+        run: |
+          python3 ci/fetch_srpms.py ci/packages.txt site/built.txt srpms | tee new.txt
+          echo "new=$([ -s new.txt ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        if: steps.fetch.outputs.new == 'true'
+        run: |
+          docker build -t srpm-builder .
+          mkdir out
+          while read -r f; do
+            docker run --rm -v "$PWD:/in:ro" -v "$PWD/out:/out" \
+              -e DEFINES -e SPEC_PATCH srpm-builder "srpms/$f"
+          done < new.txt
+
+      - name: Update repo metadata
+        if: steps.fetch.outputs.new == 'true'
+        run: |
+          docker run --rm -v "$PWD:/in:ro" -v "$PWD/out:/new:ro" -v "$PWD/site:/site" \
+            --entrypoint /in/ci/publish.sh srpm-builder /new /site
+          sudo chown -R "$USER" site
+          cat new.txt >> site/built.txt
+          touch site/.nojekyll
+
+      - name: Sign
+        if: steps.fetch.outputs.new == 'true' && env.GPG_PRIVATE_KEY != ''
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+              --detach-sign --armor -o site/repodata/repomd.xml.asc site/repodata/repomd.xml
+          gpg --armor --export > site/repodata/repomd.xml.key
+
+      - name: Publish
+        if: steps.fetch.outputs.new == 'true'
+        run: |
+          cd site
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name=github-actions -c user.email=actions@users.noreply.github.com \
+              commit -qm "repo $(date -u +%F)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
