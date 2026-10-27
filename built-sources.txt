@@ -1,0 +1,12 @@
+# name, source RPM that was built, hash of the build configuration
+faac	faac-1.50-1699.3.pm.11.src.rpm	c55130801cb0b36e
+ffmpeg-9	ffmpeg-9-9.0.2-4.2.src.rpm	a63b5f54228fb10d
+gstreamer-plugins-bad-codecs	gstreamer-plugins-bad-codecs-1.28.8-1699.2.pm.1.src.rpm	38dd2455743a68f0
+gstreamer-plugins-ugly-codecs	gstreamer-plugins-ugly-codecs-1.28.8-1699.3.pm.1.src.rpm	aff77550ce1d74b4
+libde265	libde265-1.1.3-1699.1.pm.4.src.rpm	6ec25e7cc6500567
+libheif	libheif-1.23.6-1.1.src.rpm	25d49090b7a73897
+mesa	Mesa-26.2.5-1.1.src.rpm	099663e53be1be86
+mesa-drivers	Mesa-drivers-26.2.5-1.1.src.rpm	0d2707ba1524d83d
+obs-studio	obs-studio-32.2.1-2.2.src.rpm	66ec1361b8dff298
+SVT-AV1	SVT-AV1-4.2.0-1.2.src.rpm	95bbcf3250b5b7ee
+vvenc	vvenc-1.14.0-1699.2.pm.2.src.rpm	1b1d27fda12c615d
