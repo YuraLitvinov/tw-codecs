@@ -11,7 +11,6 @@ mesa-drivers SPEC_PATCH=ci/mesa-radeon.sed DEFINES=BUILD_ORIG=1
 libheif WITH=x264
 ffmpeg-9 DEFINES=BUILD_ORIG=1 WITH="x264 x265 vvenc fdk_aac_dlopen"
 obs-studio
-SVT-AV1
 libde265
 vvenc
 faac
