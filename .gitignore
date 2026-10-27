@@ -12,7 +12,6 @@ __pycache__/
 # Local state
 hooks_log/
 .changes-tracker/
-executable_graph.k.json
 github-pages-rpm-repo/
 .protected_files.txt
 executable_graph.k.md

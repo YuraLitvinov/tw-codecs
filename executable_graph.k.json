@@ -1,0 +1,2900 @@
+{
+  "type": "ExecutableGraph",
+  "model_version": 2,
+  "created_at": "2026-10-26T21:28:07.171964Z",
+  "updated_at": "2026-10-27T01:13:17.018596Z",
+  "tx_count": 670,
+  "metadata": null,
+  "works": {
+    "type": "DecisionGraph",
+    "id": "decision_graph_1",
+    "label": "Decision Graph Root",
+    "node": {
+      "kind": "topic",
+      "id": "83f6ad47-8522-4b10-89f2-28a560587b0a",
+      "state": "proposed"
+    },
+    "children": {
+      "components": {
+        "type": "DecisionGraph",
+        "id": "components",
+        "label": "Components",
+        "description": "Container for domain-specific component groups",
+        "node": {
+          "kind": "component",
+          "role": "namespace"
+        },
+        "children": {
+          "comp_misc": {
+            "type": "DecisionGraph",
+            "id": "comp_misc",
+            "label": "misc (component)",
+            "description": "Component group for misc domain",
+            "node": {
+              "kind": "component",
+              "role": "namespace"
+            },
+            "children": {
+              "build_all_and_stage_pages_23b20865": {
+                "type": "DecisionGraph",
+                "id": "build_all_and_stage_pages_23b20865",
+                "label": "build_all_and_stage_pages",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "create",
+                    "path": "build_all.py",
+                    "source_files": [
+                      "ci/fetch_srpms.py"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T21:30:04.943643+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T21:35:49.970787+00:00",
+                      "facts": {
+                        "changes_summary": "Added build_all.py (fetch by plain name, BuildRequires-ordered container build, signed Pages tree, --plan/--stage-only/--serve), tests/test_build_all.py, case-insensitive fetch_srpms.py, new ci/packages.txt.",
+                        "files_changed": [
+                          "build_all.py",
+                          "ci/fetch_srpms.py",
+                          "ci/packages.txt",
+                          "tests/test_build_all.py"
+                        ],
+                        "learning_notes": "rpmspec cannot see pkgconfig() provides that rpm generates at build time, so edges come from .pc paths in the expanded %files plus a name-prefix match for globbed .pc files. ci/packages.txt now also feeds the nightly build.yml.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T21:36:10.377720+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 17,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all: Ran 17 tests OK. build_all.py --plan: libx264 and SVT-AV1 before libheif (needs both), gstreamer codecs after faac/libde265/x265/libx264. Note: x265 and libde265 print AFTER libheif because libheif WITH=x264 does not BuildRequire them; goal verify.plan assumed otherwise. Smoke: --packages with only faac fetched, built in podman, pruned debug RPMs, staged site/repo; --stage-only with a throwaway GPG key wrote repomd.xml.asc/.key and gpg --verify passed; --serve returned HTTP 200 for repomd.xml."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T21:36:49.283231+00:00",
+                      "facts": {
+                        "review_findings": "Read build_all.py, ci/fetch_srpms.py, ci/packages.txt, tests. Fixed in review: GPG passphrase moved from argv to stdin, gpg failures now raise a clear error. Open: ci/packages.txt now also drives nightly build.yml, so ffmpeg/vlc/obs-studio/libdatachannel/libquicktime are no longer built there; verify.plan goal wrongly expected x265/libde265 before libheif; Mesa and Mesa-drivers have no detected edge; no 32-bit builds; Mesa not built yet."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T21:36:59.242537+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T21:37:11.105129+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "project directory is not a git repository; nothing to commit",
+                        "files_changed": [
+                          "build_all.py",
+                          "ci/fetch_srpms.py",
+                          "ci/packages.txt",
+                          "tests/test_build_all.py"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_build_all_and_stage_pages_23b20865",
+                      "start": "2026-10-26T21:29:55.039436Z",
+                      "end": "2026-10-26T21:37:11.105953+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "build.image": "Build image srpm-builder from ./Dockerfile using podman or docker, whichever exists; exit 1 with a message if neither is installed",
+                    "build.output": "Collect binary RPMs into ./out-all/; drop *-debuginfo, *-debugsource and RPMs with no files, as ci/publish.sh does",
+                    "pages.stage": "Create ./site/ with .nojekyll, repo/ (RPMs plus createrepo_c repodata) and index.html pages made by github-pages-rpm-repo/scripts/generate-repo-index.sh",
+                    "pages.sign": "If GPG_PRIVATE_KEY_FILE is set, write repo/repodata/repomd.xml.asc and repomd.xml.key, so zypper accepts repo_gpgcheck=1",
+                    "pages.serve": "Flag --serve runs python3 -m http.server on ./site port 8080 and prints the zypper ar command for http://localhost:8080/repo/",
+                    "pkgs.names": "ci/packages.txt lists plain names, no versions: mesa mesa-drivers libheif SVT-AV1 libx264 x265 libde265 vvenc fdk-aac faac libopenaptx gstreamer-plugins-bad-codecs gstreamer-plugins-ugly-codecs",
+                    "srpm.fetch": "build_all.py calls ci/fetch_srpms.py to download each name's current openSUSE Tumbleweed OSS source RPM into srpms/; match names case-insensitively so mesa selects Mesa",
+                    "srpm.not_in_oss": "Names absent from OSS (libx264 x265 libde265 vvenc faac libopenaptx gstreamer codecs) are taken from vendor/srpms/ or srpms/packman-no-oss-alt/ by name prefix, newest file wins",
+                    "chain.order": "Read each SRPM spec (rpmspec -P, BuildRequires and Provides) and topologically sort the names so a package builds after the packages providing its BuildRequires; exit 1 on a cycle",
+                    "chain.print": "--plan prints the resolved build order with the edges (X needs Y because of BuildRequires Z), fetches nothing and builds nothing, exits 0",
+                    "build.run": "Build each SRPM in that order via build-srpm.sh in the container with LOCAL_REPO=1, so later builds install earlier output; stop at the first failure and say which package failed",
+                    "build.options": "Per-name options (WITH, WITHOUT, SPEC_PATCH, DEFINES, NOCHECK) live in ci/packages.txt after the name as ENV=VAL, e.g. 'libheif WITH=x264', and are passed to build-srpm.sh",
+                    "scripts.python": "build_all.py is Python 3 standard library only; no new shell scripts are added for this work",
+                    "verify.plan": "python3 build_all.py --plan prints libx264, x265 and libde265 before libheif, and mesa-drivers after mesa"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approval_content_hash": "1c0926197b1f",
+                  "approved_at": "2026-10-26T21:29:47.719040+00:00",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T21:37:11.132359+00:00"
+                },
+                "kind": "work",
+                "description": "Python tooling: fetch SRPMs by plain name from openSUSE, build them in a container in dependency order, stage a signed zypper repo tree for GitHub Pages locally.",
+                "created_at": "2026-10-26T21:28:25.069565Z"
+              },
+              "build_matrix_workflow_db16ee19": {
+                "type": "DecisionGraph",
+                "id": "build_matrix_workflow_db16ee19",
+                "label": "build_matrix_workflow",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "create",
+                    "path": ".github/workflows/build-matrix.yml",
+                    "source_files": [
+                      "build_all.py",
+                      "build-srpm.sh",
+                      "Dockerfile",
+                      "ci/packages.txt",
+                      "tests/test_build_all.py"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T21:53:01.835173+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:00:24.513062+00:00",
+                      "facts": {
+                        "changes_summary": "Added .github/workflows/build-matrix.yml (plan, stage1/stage2 matrices, publish to Pages); build_all.py --matrix/--only/--deps, edge pruning via the builder image, CONTAINER_ENGINE; DEPS_REPO in build-srpm.sh; VideoLAN repo in Dockerfile; ci/packages.txt edits; 9 new tests.",
+                        "files_changed": [
+                          ".github/workflows/build-matrix.yml",
+                          "build_all.py",
+                          "build-srpm.sh",
+                          "Dockerfile",
+                          "ci/packages.txt",
+                          "tests/test_build_all.py"
+                        ],
+                        "learning_notes": "A matrix cannot express per-entry needs, so stages are computed after pruning edges that official or VideoLAN repos satisfy; the pruning runs in the builder image so it sees the same repos the build uses. Plain 'zypper se' exits 104 when nothing matches, which the shell loop must not propagate.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:00:33.817051+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 26,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all: Ran 26 tests OK. YAML parses (yaml.safe_load) with jobs plan, stage1, stage2, publish; grep finds strategy, matrix, fromJSON, needs, upload-artifact, download-artifact, deploy-pages. Real run: build_all.py --matrix printed {stage1: 13 packages, stage2: [gstreamer-plugins-bad-codecs]} after pruning edges via the image. Real run: --only faac --deps DIR built in podman, no site/ staged. In the image, DEPS_REPO registered repo deps at priority 90, videolan at 110, /deps read-only. NOT run: the workflow itself on GitHub."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:00:34.774089+00:00",
+                      "facts": {
+                        "review_findings": "Read the workflow and build_all.py diff. Fixed during implementation: zypper loop exit status 104 propagated; stale local image skipped the VideoLAN repo (--matrix now rebuilds the image). Open: workflow untested on GitHub; stage2 downloads every stage1 artifact including Mesa; Pages 1 GB cap; build.yml and build-matrix.yml publish to different Pages sources; Mesa-drivers 350 min limit unproven."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:00:35.631843+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:00:36.760184+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "project directory is not a git repository; nothing to commit",
+                        "files_changed": [
+                          ".github/workflows/build-matrix.yml",
+                          "build_all.py",
+                          "build-srpm.sh",
+                          "Dockerfile",
+                          "ci/packages.txt",
+                          "tests/test_build_all.py"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_build_matrix_workflow_db16ee19",
+                      "start": "2026-10-26T21:53:00.661445Z",
+                      "end": "2026-10-26T22:00:36.761034+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "wf.file": "Create .github/workflows/build-matrix.yml named build-matrix; triggers workflow_dispatch and push to main on ci/**, Dockerfile, build_all.py, build-srpm.sh; no cron",
+                    "wf.plan": "Job plan: checkout, docker build -t srpm-builder ., run python3 build_all.py --matrix, output stage1 and stage2 (JSON arrays of package names) through GITHUB_OUTPUT",
+                    "wf.stage1": "Job stage1: needs plan; matrix name=fromJSON(plan.outputs.stage1), fail-fast false, timeout-minutes 350; runs build_all.py --only NAME, uploads out-all/ as artifact rpms-NAME",
+                    "wf.stage2": "Job stage2: needs plan and stage1; matrix over plan.outputs.stage2; downloads all rpms-* artifacts into ./deps first and passes --deps ./deps; same build and upload as stage1",
+                    "wf.stage2_skip": "stage2 has if needs.plan.outputs.stage2 != '[]' so an empty matrix does not fail the run; publish still runs when stage2 is skipped",
+                    "wf.publish": "Job publish: needs stage1 and stage2; downloads all rpms-* into out-all/, runs build_all.py --stage-only, then actions/upload-pages-artifact path site and actions/deploy-pages",
+                    "wf.sign": "publish writes secret GPG_PRIVATE_KEY to a temp file and exports GPG_PRIVATE_KEY_FILE (and GPG_PASSPHRASE) before --stage-only; stays unsigned when the secret is empty",
+                    "wf.perms": "permissions contents read, pages write, id-token write; concurrency group build-matrix with cancel-in-progress false; publish uses environment github-pages",
+                    "wf.old": "Leave .github/workflows/build.yml unchanged; build-matrix deploys with Pages Actions, so Settings > Pages source must be GitHub Actions for it",
+                    "py.matrix": "build_all.py --matrix prints JSON {\"stage1\":[names],\"stage2\":[names]}: stage2 = packages with an unpruned edge to another listed package; exit 1 if the chain is deeper than two",
+                    "py.prune": "Drop a build edge when the srpm-builder image repos provide the capability: docker run srpm-builder zypper -n se --provides -t package CAP prints a match; used by --matrix and --plan",
+                    "py.only": "build_all.py --only NAME fetches and builds just that package; --deps DIR mounts DIR read-only at /deps in the container and sets DEPS_REPO=/deps",
+                    "sh.deps_repo": "build-srpm.sh: if DEPS_REPO is set, copy it to /tmp/deps, run createrepo_c there and zypper ar -f -G -p 90 file:///tmp/deps before building, so stage1 RPMs satisfy BuildRequires",
+                    "docker.videolan": "Dockerfile: add repo https://download.videolan.org/pub/vlc/SuSE/Tumbleweed/ named videolan, priority 110 so OSS wins; ref with --gpg-auto-import-keys; gives libx264-devel and libx265-devel",
+                    "pkgs.list": "ci/packages.txt: remove x265 (libx265-devel 4.2 comes from VideoLAN); add ffmpeg-9 and obs-studio, whose SRPMs are already in srpms/",
+                    "tests.python": "Extend tests/test_build_all.py: stage split from edges, error on chain deeper than two, edge pruning with a fake capability checker, --matrix JSON shape; unittest passes",
+                    "verify.yaml": "The workflow parses as YAML (python3 yaml.safe_load or ruby -ryaml) and contains strategy, matrix, fromJSON, needs, upload-artifact, download-artifact and deploy-pages"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "15d53d1480f8",
+                  "approved_at": "2026-10-26T21:52:59.545050+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:00:36.793241+00:00"
+                },
+                "kind": "work",
+                "description": "Matrix GitHub workflow: a plan job, parallel per-package build jobs in two stages, and a publish job deploying the zypper repo to GitHub Pages.",
+                "created_at": "2026-10-26T21:51:28.427807Z"
+              },
+              "publish_to_tw_codecs_repo_bbb90e9e": {
+                "type": "DecisionGraph",
+                "id": "publish_to_tw_codecs_repo_bbb90e9e",
+                "label": "publish_to_tw_codecs_repo",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "ci/fetch_srpms.py",
+                    "source_files": [
+                      "build_all.py",
+                      ".gitignore",
+                      "README.md",
+                      "scripts/generate-repo-index.sh",
+                      "LICENSE.github-pages-rpm-repo",
+                      "ci/packages.txt",
+                      ".github/workflows/build-matrix.yml",
+                      "tests/test_build_all.py"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T22:10:33.962601+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:12:41.930033+00:00",
+                      "facts": {
+                        "changes_summary": "SRPMs now come only from openSUSE OSS or release assets of tw-codecs (fetch_release_srpms); lookup limited to srpms/; added README, .gitignore, scripts/generate-repo-index.sh, workflow token env; git init, one commit, pushed main over ssh.",
+                        "files_changed": [
+                          "ci/fetch_srpms.py",
+                          "build_all.py",
+                          ".gitignore",
+                          "README.md",
+                          "scripts/generate-repo-index.sh",
+                          "LICENSE.github-pages-rpm-repo",
+                          "ci/packages.txt",
+                          ".github/workflows/build-matrix.yml",
+                          "tests/test_build_all.py"
+                        ],
+                        "learning_notes": "GitHub redirects asset downloads to another host that rejects our Authorization header, so the opener strips it on cross-host redirects. https push has no credentials here, so origin uses the ssh URL.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:12:51.997915+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 32,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all: Ran 32 tests OK (release asset pick/download/token header, fetch_all errors and offline cache). git ls-files: 15 files, none .rpm or under srpms/ vendor/ reference/ out*/; grep -Eil 'gwdg|links2linux' over git ls-files finds nothing. git ls-remote origin main = local HEAD 76e514db92dd83657c51676e03baab66dceff074. Not run: a real download from a tw-codecs release (none exists yet)."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:12:53.182405+00:00",
+                      "facts": {
+                        "review_findings": "Read the diff of fetch_srpms.py, build_all.py, README, .gitignore. Fixed: find_srpm default ROOT was captured at definition so tests could not patch it. Open: no release with SRPMs exists yet, so --matrix/--plan fail for libx264 etc. until you add them; https remote has no credentials so origin is ssh; executable_graph.k.json, .protected_files.txt, executable_graph.k.md ignored."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:12:54.371246+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:12:55.544187+00:00",
+                      "facts": {
+                        "commits": [
+                          {
+                            "hash": "76e514db92dd83657c51676e03baab66dceff074",
+                            "source": "."
+                          }
+                        ],
+                        "files_changed": [
+                          "ci/fetch_srpms.py",
+                          "build_all.py",
+                          ".gitignore",
+                          "README.md",
+                          "scripts/generate-repo-index.sh",
+                          "LICENSE.github-pages-rpm-repo",
+                          "ci/packages.txt",
+                          ".github/workflows/build-matrix.yml",
+                          "tests/test_build_all.py"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_publish_to_tw_codecs_repo_bbb90e9e",
+                      "start": "2026-10-26T22:10:33.166907Z",
+                      "end": "2026-10-26T22:12:55.545063+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "srpm.release_api": "ci/fetch_srpms.py: add fetch_release_srpms(names, outdir, repo): list api.github.com/repos/REPO/releases and download the .src.rpm assets that match each name",
+                    "srpm.release_repo": "The release repo comes from env SRPM_RELEASE_REPO, default YuraLitvinov/tw-codecs",
+                    "srpm.release_pick": "Across all releases take, per name, the newest .src.rpm asset by version_key (names matched like matches_name); send header Authorization: Bearer $GITHUB_TOKEN when that env var is set; never require it",
+                    "srpm.fetch_all": "build_all.fetch_all: OSS first, then fetch_release_srpms for names OSS lacks; a name still missing raises BuildError naming it and saying to add its .src.rpm to a release of the repo",
+                    "srpm.one_tier": "build_all.TIERS keeps only srpms/ (non-recursive); remove the vendor/srpms and srpms/packman-no-oss-alt tiers; update the docstring and ci/packages.txt comments that mention them",
+                    "srpm.no_packman": "No script, workflow, README or comment contains a Packman download URL; packman may appear only as a word describing what is replaced",
+                    "wf.token": "build-matrix.yml: add env GITHUB_TOKEN: ${{ github.token }} at workflow level so the release lookup in plan, stage1 and stage2 is authenticated",
+                    "repo.index_script": "Copy github-pages-rpm-repo/scripts/generate-repo-index.sh to scripts/generate-repo-index.sh and its LICENSE to LICENSE.github-pages-rpm-repo; build_all.py calls the copy, not the nested clone",
+                    "repo.gitignore": ".gitignore excludes *.rpm, srpms/, vendor/, reference/, out*/, site/, build.log, hooks_log/, .changes-tracker/, __pycache__/, github-pages-rpm-repo/ and executable_graph.k.json (local cwpilot state)",
+                    "repo.readme": "Add README.md: purpose, ci/packages.txt format, build_all.py flags, where SRPMs come from (OSS download; the rest from releases of this repo), local run, Pages setup; under 120 lines",
+                    "git.init": "In the project root run git init -b main and commit every non-ignored file; never touch git config",
+                    "git.remote": "Add origin https://github.com/YuraLitvinov/tw-codecs.git (empty remote); use git@github.com:YuraLitvinov/tw-codecs.git instead if https asks for a password",
+                    "git.push": "git push -u origin main; never force-push",
+                    "git.verify": "git ls-files lists no .rpm and nothing under srpms/, vendor/, reference/, out*/; git ls-remote origin main prints the hash of git rev-parse HEAD",
+                    "tests.update": "Update tests/test_build_all.py for the single srpms/ tier; add tests for fetch_release_srpms with mocked API JSON (newest asset wins, token header only when set); unittest passes",
+                    "verify.grep": "grep -rEi 'gwdg|links2linux' over git ls-files prints nothing"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "385f057eabb6",
+                  "approved_at": "2026-10-26T22:10:32.107748+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:12:55.579542+00:00"
+                },
+                "kind": "work",
+                "description": "Make SRPM sourcing script-only (openSUSE OSS plus release assets of tw-codecs, no Packman), clean the tree, and push all code to YuraLitvinov/tw-codecs.",
+                "created_at": "2026-10-26T22:09:28.649274Z"
+              },
+              "fix_ffmpeg_openssl_pick_1ea9dc37": {
+                "type": "DecisionGraph",
+                "id": "fix_ffmpeg_openssl_pick_1ea9dc37",
+                "label": "fix_ffmpeg_openssl_pick",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "Dockerfile"
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T22:23:11.130664+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:24:48.357581+00:00",
+                      "facts": {
+                        "changes_summary": "Dockerfile: libopenssl-3-devel added to the preinstalled packages with a comment; image rebuilt.",
+                        "files_changed": [
+                          "Dockerfile"
+                        ],
+                        "learning_notes": "zypper resolves pkgconfig(openssl) to libressl-devel when nothing preferred is installed; OBS uses a project Prefer, the container uses a preinstall.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:28:44.316191+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 0,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "Before: dry-run for pkgconfig(openssl) picked libressl-devel libcrypto57 libssl60 libtls33. After rebuilding the image: 'libopenssl-3-devel providing pkgconfig(openssl) is already installed', pkg-config --modversion openssl = 3.5.3. build_all.py --only ffmpeg-9: configure and %build completed (no 'OpenSSL <3.0.0' error in the log), then the build FAILED at packaging: 'File not found: .../usr/share/man/man1/ff*.1*'. Cause seen in the log: perl, pod2man, makeinfo are missing in the image (perl: command not found at the spec's perl -pe lines; CONFIG_MANPAGES 0). That is a separate defect, not fixed here. Dockerfile-only change, no unit tests."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:28:45.349210+00:00",
+                      "facts": {
+                        "review_findings": "Dockerfile diff is the libopenssl-3-devel line plus a comment. User had already edited the VideoLAN repo line to priority 70; left as is. Open: ffmpeg-9 still fails later because the image has no perl (empty --enable-encoder/--enable-decoder from the spec's perl -pe, and no man pages); needs its own fix."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:28:46.108007+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:28:46.679606+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "Dockerfile also holds the user's own uncommitted edit (VideoLAN priority 70); committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "Dockerfile"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_fix_ffmpeg_openssl_pick_1ea9dc37",
+                      "start": "2026-10-26T22:23:09.988984Z",
+                      "end": "2026-10-26T22:28:46.679980+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "repro.before": "In the old image, zypper -n in --dry-run pkgconfig(openssl) lists libressl-devel libcrypto57 libssl60 libtls33 as NEW; ffmpeg-9 configure then prints OpenSSL <3.0.0 is incompatible with the gpl",
+                    "fix.dockerfile": "Dockerfile: add libopenssl-3-devel to the zypper -n in --no-recommends package list of the existing RUN, with a comment saying why (four packages provide pkgconfig(openssl))",
+                    "verify.after": "After podman build -t srpm-builder ., the same dry-run prints: libopenssl-3-devel providing pkgconfig(openssl) is already installed, and pkg-config --modversion openssl prints 3.5.3",
+                    "verify.ffmpeg": "build_all.py --only ffmpeg-9 gets past ./configure; if a later step fails, report that failure instead of claiming the build passes"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "34e5b8ca9e0a",
+                  "approved_at": "2026-10-26T22:23:08.842383+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:28:46.697137+00:00"
+                },
+                "kind": "work",
+                "description": "ffmpeg-9 configure fails: zypper picks libressl-devel for pkgconfig(openssl), which GPL builds reject; preinstall libopenssl-3-devel in the builder image.",
+                "created_at": "2026-10-26T22:22:54.804966Z"
+              },
+              "add_perl_to_builder_image_d00efe43": {
+                "type": "DecisionGraph",
+                "id": "add_perl_to_builder_image_d00efe43",
+                "label": "add_perl_to_builder_image",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "Dockerfile"
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T22:30:16.594942+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:31:10.828416+00:00",
+                      "facts": {
+                        "changes_summary": "Dockerfile: perl added to the preinstalled packages with a comment; image rebuilt; which perl pod2man prints /usr/bin/perl and /usr/bin/pod2man.",
+                        "files_changed": [
+                          "Dockerfile"
+                        ],
+                        "learning_notes": "OBS build roots always include perl, so specs assume it; the bare container has only what the Dockerfile installs.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:36:21.315848+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 0,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "podman build then 'which perl pod2man' printed /usr/bin/perl and /usr/bin/pod2man. build_all.py --only ffmpeg-9 exit=0: log has 0 'perl: command not found', 0 'ERROR: OpenSSL', configure reports 'perl enabled yes', 'pod2man enabled yes', CONFIG_MANPAGES 1; out-all holds 15 RPMs (ffmpeg, libavcodec63, libavformat63, libavfilter12, libavdevice63, libavutil61, libswresample7, libswscale10 and their -devel). Dockerfile-only change, no unit tests."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:36:22.279207+00:00",
+                      "facts": {
+                        "review_findings": "Dockerfile diff is perl on the install line plus a comment. ffmpeg-9 now builds end to end locally. Not checked: that the resulting libavcodec63 has the codecs you want (x264, x265, fdk-aac, vvenc); the spec lists them, the build log decides."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:36:23.387782+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:36:24.548633+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "Dockerfile also holds the user's own uncommitted edit (VideoLAN priority 70) and the workflows are uncommitted; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "Dockerfile"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_add_perl_to_builder_image_d00efe43",
+                      "start": "2026-10-26T22:30:15.429073Z",
+                      "end": "2026-10-26T22:36:24.549465+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "repro.before": "Log of build_all.py --only ffmpeg-9 shows 'perl: command not found' (spec lines 669-670), 'pod2man enabled no', then 'File not found: .../man/man1/ff*.1*'",
+                    "fix.dockerfile": "Dockerfile: add perl to the zypper -n in --no-recommends package list next to libopenssl-3-devel, with a comment naming the ffmpeg spec's perl -pe lines and pod2man",
+                    "verify.image": "After podman build -t srpm-builder ., podman run --rm --entrypoint bash srpm-builder -c 'which perl pod2man' prints /usr/bin/perl and /usr/bin/pod2man",
+                    "verify.ffmpeg": "build_all.py --only ffmpeg-9 log has no 'perl: command not found'; report the final exit status and any new error as it is, do not claim success if the build fails"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "4a2f19524427",
+                  "approved_at": "2026-10-26T22:30:14.299511+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:36:24.589311+00:00"
+                },
+                "kind": "work",
+                "description": "Add perl to the builder image: ffmpeg-9 runs perl -pe on enable_encoders/enable_decoders and needs pod2man for man pages; without perl the build fails at packaging.",
+                "created_at": "2026-10-26T22:29:59.971554Z"
+              },
+              "ffmpeg9_unrestricted_build_c1161d29": {
+                "type": "DecisionGraph",
+                "id": "ffmpeg9_unrestricted_build_c1161d29",
+                "label": "ffmpeg9_unrestricted_build",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "ci/packages.txt",
+                    "source_files": [
+                      "tests/test_build_all.py"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T22:40:26.060311+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:41:39.014537+00:00",
+                      "facts": {
+                        "changes_summary": "ci/packages.txt: ffmpeg-9 now has DEFINES=BUILD_ORIG=1 WITH=\"x264 x265 vvenc fdk_aac_dlopen\"; tests/test_build_all.py: quoted-WITH parse test (33 tests pass).",
+                        "files_changed": [
+                          "ci/packages.txt",
+                          "tests/test_build_all.py"
+                        ],
+                        "learning_notes": "The ffmpeg spec gates codecs behind bconds and BUILD_ORIG, like Mesa; options, not a spec patch. vvenc-devel only comes from our vvenc SRPM, so ffmpeg-9 moves to stage2.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:48:31.478641+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 33,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all: Ran 33 tests OK. build_all.py --matrix on a copy of the list without libx264/fdk-aac/libopenaptx: stage1 has vvenc, stage2 has ffmpeg-9 and gstreamer-plugins-bad-codecs. build_all.py --only vvenc exit 0 (3 RPMs), then --only ffmpeg-9 exit 0: log has --enable-libx264 --enable-libx265 --enable-libvvenc --enable-libfdk-aac-dlopen, 0 'limited in the number of codecs', perl/pod2man enabled. rpm -qp --provides out-all/libavcodec63-*.rpm prints libavcodec63(unrestricted) and libavcodec-full; it requires libx264.so.165, libx265.so.216, libvvenc.so.1.14."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:48:32.393010+00:00",
+                      "facts": {
+                        "review_findings": "Two-line change to ci/packages.txt plus one parser test. The full ci/packages.txt still lists libx264 and fdk-aac, which are not in the release, so a full run or the workflow plan job fails until they are removed (user decision pending). Runtime: libavcodec63 now requires libx264.so.165 and libx265.so.216 (VideoLAN) and libvvenc.so.1.14 (this repo)."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:48:33.537128+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:48:34.484084+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree also holds the user's uncommitted edits (Dockerfile priority, workflows, packages.txt removals); committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "ci/packages.txt",
+                          "tests/test_build_all.py"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_ffmpeg9_unrestricted_build_c1161d29",
+                      "start": "2026-10-26T22:40:25.133062Z",
+                      "end": "2026-10-26T22:48:34.484568+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "pkgs.line": "ci/packages.txt: replace the line 'ffmpeg-9' with: ffmpeg-9 DEFINES=BUILD_ORIG=1 WITH=\"x264 x265 vvenc fdk_aac_dlopen\"",
+                    "tests.quotes": "tests/test_build_all.py: add a parse_packages test that WITH=\"x264 x265\" with a space inside the quotes parses to {'WITH': 'x264 x265'}; unittest passes",
+                    "verify.matrix": "python3 build_all.py --matrix lists vvenc in stage1 and ffmpeg-9 in stage2, because ffmpeg-9 now BuildRequires vvenc-devel",
+                    "verify.flags": "Build vvenc then ffmpeg-9 with build_all.py --only (out-all keeps vvenc RPMs for the second build); the ffmpeg-9 log must contain --enable-libx264 --enable-libx265 --enable-libvvenc --enable-libfdk-aac-dlopen",
+                    "verify.unrestricted": "rpm -qp --provides out-all/libavcodec63-*.rpm prints libavcodec63(unrestricted) and libavcodec-full; the log has no 'limited in the number of codecs'",
+                    "verify.report": "Report the real exit status and any new error; do not claim success if a build fails"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "fe8fb0622157",
+                  "approved_at": "2026-10-26T22:40:24.091927+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:48:34.511089+00:00"
+                },
+                "kind": "work",
+                "description": "Build ffmpeg-9 unrestricted: BUILD_ORIG=1 for the full codec lists and the (unrestricted) provides, plus --with x264 x265 vvenc fdk_aac_dlopen.",
+                "created_at": "2026-10-26T22:39:57.061261Z"
+              },
+              "drop_libx264_from_list_8522b715": {
+                "type": "DecisionGraph",
+                "id": "drop_libx264_from_list_8522b715",
+                "label": "drop_libx264_from_list",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "ci/packages.txt"
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T22:50:16.113836+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:52:06.430346+00:00",
+                      "facts": {
+                        "changes_summary": "Removed libx264 from ci/packages.txt. Found and fixed a bug while verifying: --matrix printed the image id and a progress line on stdout, breaking jq in the workflow; build_image now sends podman stdout to stderr and make_official runs inside the redirect. 2 new tests.",
+                        "files_changed": [
+                          "ci/packages.txt",
+                          "build_all.py",
+                          "tests/test_build_all.py"
+                        ],
+                        "learning_notes": "A mocked test passed while the real run polluted stdout, because subprocess output bypasses redirect_stdout; the real run on the real list found it.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:52:07.024254+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 35,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all: Ran 35 tests OK. python3 build_all.py --matrix on the real ci/packages.txt: exit 0, stdout is only JSON (json.load and jq -c .stage1 both parse it): stage1 mesa mesa-drivers libheif obs-studio SVT-AV1 libde265 vvenc fdk-aac faac gstreamer-plugins-ugly-codecs; stage2 ffmpeg-9 gstreamer-plugins-bad-codecs. libx264 is in neither. Before the fix the same run printed an image id and '== building image' into the JSON file."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:52:07.619765+00:00",
+                      "facts": {
+                        "review_findings": "Read the build_all.py main() and build_image diff. The stdout fix covers the image build and the capability queries; other --matrix subprocesses capture output. Open: nothing committed or pushed."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:52:08.206637+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:52:08.779777+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree also holds the user's uncommitted edits; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "ci/packages.txt",
+                          "build_all.py",
+                          "tests/test_build_all.py"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_drop_libx264_from_list_8522b715",
+                      "start": "2026-10-26T22:50:14.879347Z",
+                      "end": "2026-10-26T22:52:08.780148+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "pkgs.remove": "ci/packages.txt: delete the line 'libx264' (line 13); keep every other line unchanged",
+                    "verify.matrix": "python3 build_all.py --matrix exits 0 on the real list and prints JSON; libx264 appears in neither stage1 nor stage2; ffmpeg-9 and gstreamer-plugins-bad-codecs are in stage2",
+                    "verify.unit": "python3 -m unittest tests.test_build_all passes; the README sentence about libx264-devel from VideoLAN stays as it is",
+                    "verify.report": "If --matrix fails, report the exact error instead of claiming success"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "e1622092d80b",
+                  "approved_at": "2026-10-26T22:50:13.696617+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:52:08.801178+00:00"
+                },
+                "kind": "work",
+                "description": "Remove libx264 from the build list: libx264-165 and libx264-devel come from the VideoLAN repo in the builder image, so the workflow needs no SRPM for it.",
+                "created_at": "2026-10-26T22:49:59.745837Z"
+              },
+              "publish_public_key_on_pages_03eee369": {
+                "type": "DecisionGraph",
+                "id": "publish_public_key_on_pages_03eee369",
+                "label": "publish_public_key_on_pages",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "build_all.py",
+                    "source_files": [
+                      "tests/test_build_all.py",
+                      "RPM-GPG-KEY",
+                      "README.md"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T22:55:21.798151+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T22:56:20.844058+00:00",
+                      "facts": {
+                        "changes_summary": "build_all.py: sign_repomd returns the exported public key; public_key_for_site and check_public_key; stage_site writes RPM-GPG-KEY to site/ and site/repo/. 6 new tests. README: key publication and zypper import commands. RPM-GPG-KEY committed.",
+                        "files_changed": [
+                          "build_all.py",
+                          "tests/test_build_all.py",
+                          "README.md",
+                          "RPM-GPG-KEY"
+                        ],
+                        "learning_notes": "Exporting the key from the same secret that signs guarantees the published key matches the signature; the committed file is only the unsigned fallback.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T22:56:29.519347+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 41,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all: Ran 41 tests OK. Staged 18 RPMs with a throwaway GPG_PRIVATE_KEY_FILE: site/RPM-GPG-KEY equals repo/repodata/repomd.xml.key and repo/RPM-GPG-KEY, mode 644, gpg --import of it then gpg --verify of repomd.xml.asc printed 'Good signature'. Staged without the secret: site/RPM-GPG-KEY equals the committed RPM-GPG-KEY and the output says it came from the committed file; no repomd.xml.asc. Committed head -1 of RPM-GPG-KEY is BEGIN PGP PUBLIC KEY BLOCK, grep -c PRIVATE is 0. git ls-remote origin main = 2079512440ebacfae5bccf9716b7210039778d44."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T22:56:30.663529+00:00",
+                      "facts": {
+                        "review_findings": "Read the sign_repomd, check_public_key, public_key_for_site and stage_site diff. Open: the committed key and the key behind the GPG_PRIVATE_KEY secret may differ; the site always publishes the signing key when signing, so the committed file only matters unsigned. A signed run publishes a key that is not the committed one if they differ."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T22:56:31.856501+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T22:56:32.994443+00:00",
+                      "facts": {
+                        "commits": [
+                          {
+                            "hash": "2079512440ebacfae5bccf9716b7210039778d44",
+                            "source": "."
+                          }
+                        ],
+                        "files_changed": [
+                          "build_all.py",
+                          "tests/test_build_all.py",
+                          "README.md",
+                          "RPM-GPG-KEY"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_publish_public_key_on_pages_03eee369",
+                      "start": "2026-10-26T22:55:20.554453Z",
+                      "end": "2026-10-26T22:56:32.995402+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "sign.return_key": "build_all.sign_repomd returns the exported public key bytes (None when GPG_PRIVATE_KEY_FILE is unset) instead of a bool; repomd.xml.key keeps the same bytes",
+                    "key.pick": "Add public_key_for_site(signed_key, root): returns signed_key if given, else the bytes of root/RPM-GPG-KEY if that file exists, else None; a signing key always wins over the committed file",
+                    "stage.publish": "stage_site writes the chosen key to site/RPM-GPG-KEY and site/repo/RPM-GPG-KEY with mode 0644 and prints which source it used, or 'no public key published'",
+                    "key.safety": "Refuse to publish a file that does not start with -----BEGIN PGP PUBLIC KEY BLOCK----- or that contains PRIVATE; raise BuildError naming the file",
+                    "tests.key": "tests/test_build_all.py: tests for public_key_for_site (signing key wins, committed file fallback, none) and the BuildError on a PRIVATE KEY block; unittest passes",
+                    "verify.signed": "Stage with a throwaway GPG_PRIVATE_KEY_FILE: site/RPM-GPG-KEY equals repo/repodata/repomd.xml.key; gpg --import of it then gpg --verify of repomd.xml.asc passes",
+                    "verify.unsigned": "Stage without the secret: site/RPM-GPG-KEY is a copy of the committed RPM-GPG-KEY and the output says it came from the committed file",
+                    "repo.commit": "git add RPM-GPG-KEY (public block, checked), update the README sentence on signing to mention the published key URL, commit, and git push origin main over ssh; never force-push"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "2230f9673681",
+                  "approved_at": "2026-10-26T22:55:19.385337+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T22:56:33.043388+00:00"
+                },
+                "kind": "work",
+                "description": "Publish the repo's public key at site/RPM-GPG-KEY and site/repo/RPM-GPG-KEY: exported from the signing key when signing, else the committed RPM-GPG-KEY.",
+                "created_at": "2026-10-26T22:55:07.871718Z"
+              },
+              "obs_without_nvenc_6847b012": {
+                "type": "DecisionGraph",
+                "id": "obs_without_nvenc_6847b012",
+                "label": "obs_without_nvenc",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "create",
+                    "path": "ci/obs-pipewire-only.sed",
+                    "source_files": [
+                      "ci/packages.txt"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T23:19:23.975790+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T23:20:00.208774+00:00",
+                      "facts": {
+                        "changes_summary": "Added ci/obs-pipewire-only.sed (ENABLE_NVENC/ALSA/PULSEAUDIO/JACK/SNDIO=OFF, BuildRequires and obs-nvenc-test removed); ci/packages.txt obs-studio line now has SPEC_PATCH=ci/obs-pipewire-only.sed.",
+                        "files_changed": [
+                          "ci/obs-pipewire-only.sed",
+                          "ci/packages.txt"
+                        ],
+                        "learning_notes": "The spec's ENABLE_NATIVE_NVENC is not defined anywhere upstream (0 hits in the 32.2.1 tarball); the real option is ENABLE_NVENC, so the sed rewrites that line instead of just flipping it.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T23:47:39.362446+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 41,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "Sed applied to a copy of obs-studio.spec: diff shows only the intended lines; rpmspec -q --buildrequires lists none of ffnvcodec, alsa, libpulse, jack, sndio-devel, xcomposite, xinerama, xrandr (BuildRequires 62 -> 54). build_all.py --only obs-studio exit 0 (obs-studio and obs-studio-devel RPMs). rpm -qpl obs-studio: no obs-nvenc, linux-alsa, linux-pulseaudio, linux-jack, linux-capture or sndio file; linux-pipewire present (59 matching lines); rpm -qp --requires has no alsa/pulse/jack/sndio/nvenc/xcomposite/Xinerama/Xrandr. Dependency closure in the builder image 681 -> 679 after linux-capture (700 before any change). Plugins left: decklink*, frontend-tools, image-source, linux-pipewire, linux-v4l2, obs-ffmpeg, obs-filters, obs-outputs, obs-qsv11, obs-transitions, obs-vst, obs-webrtc, rtmp-services, text-freetype2, vlc-video. Unit tests 41 pass (no code change)."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T23:47:40.543461+00:00",
+                      "facts": {
+                        "review_findings": "Read the final sed and its diff. The spec option ENABLE_NATIVE_NVENC does not exist upstream, so the sed rewrites it to ENABLE_NVENC=OFF. Open: the dependency closure only fell from 700 to 679; the VLC plugin build dependency (about 150 packages) and Qt6 dominate and are untouched; the first GitHub run used the unpatched obs-studio."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T23:47:41.701678+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T23:47:42.874236+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree holds several uncommitted changes; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "ci/obs-pipewire-only.sed",
+                          "ci/packages.txt"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_obs_without_nvenc_6847b012",
+                      "start": "2026-10-26T23:19:22.812820Z",
+                      "end": "2026-10-26T23:47:42.875071+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "sed.rules": "Create ci/obs-pipewire-only.sed (sed -E): ENABLE_NATIVE_NVENC=ON becomes ENABLE_NVENC=OFF; ENABLE_JACK=ON and ENABLE_SNDIO=ON become OFF; after the ENABLE_PLUGINS=ON line add ENABLE_ALSA=OFF and ENABLE_PULSEAUDIO=OFF",
+                    "sed.header": "Start the sed file with comments: what it removes, why (PipeWire only, AMD GPU), that ENABLE_NATIVE_NVENC in the spec is not an upstream option (use ENABLE_NVENC), and how it is applied (SPEC_PATCH in build-srpm.sh)",
+                    "pkgs.line": "ci/packages.txt: change the line 'obs-studio' to 'obs-studio SPEC_PATCH=ci/obs-pipewire-only.sed'; leave every other line unchanged",
+                    "verify.spec": "Applying the sed to the extracted obs-studio.spec: rpmspec -q --buildrequires lists no ffnvcodec, and grep -n 'NVENC=ON\\|obs-nvenc-test' on the patched spec prints nothing outside the changelog",
+                    "verify.build": "build_all.py --only obs-studio exits 0; rpm -qpl out-all/obs-studio-*.rpm | grep -E 'obs-nvenc|linux-(alsa|pulseaudio|jack)|sndio' prints nothing and grep linux-pipewire prints the plugin; report the real result",
+                    "verify.deps": "Report obs-studio's BuildRequires package count in the builder image now versus the 700 measured before, and which removed dependency saved the most",
+                    "sed.deps": "Same sed deletes the BuildRequires lines for pkgconfig(ffnvcodec), pkgconfig(alsa), pkgconfig(libpulse), pkgconfig(jack) and sndio-devel, and the 3-line block %ifarch x86_64 / obs-nvenc-test / %endif in %files",
+                    "verify.spec_deps": "On the sed-patched obs-studio.spec, rpmspec -q --buildrequires lists none of ffnvcodec, alsa, libpulse, jack, sndio-devel",
+                    "verify.spec_cmake": "The patched spec's cmake call contains -DENABLE_NVENC=OFF -DENABLE_ALSA=OFF -DENABLE_PULSEAUDIO=OFF -DENABLE_JACK=OFF -DENABLE_SNDIO=OFF and no ENABLE_NATIVE_NVENC",
+                    "sed.capture": "The sed inserts before the 'cmake -B build/' line in %build: sed -i '/add_obs_plugin(linux-capture/d' plugins/CMakeLists.txt, so the X11-only xshm/xcomposite capture plugin is not built",
+                    "sed.x11_deps": "The sed also deletes the BuildRequires lines for pkgconfig(xcomposite), pkgconfig(xinerama) and pkgconfig(xrandr), which only plugins/linux-capture uses; pkgconfig(x11) and pkgconfig(xcb) stay because libobs needs them",
+                    "verify.capture": "The built obs-studio RPM has no linux-capture.so, still has linux-pipewire.so, and rpmspec -q --buildrequires on the patched spec lists no xcomposite, xinerama or xrandr"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "acc5f1dc53bf",
+                  "approved_at": "2026-10-26T23:19:21.680989+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T23:47:42.951081+00:00"
+                },
+                "kind": "work",
+                "description": "Build obs-studio PipeWire-only on Wayland: no NVENC, ALSA, PulseAudio, JACK, sndio or X11 capture (linux-capture). A SPEC_PATCH sed switches options off and drops their BuildRequires and files.",
+                "created_at": "2026-10-26T23:16:41.208884Z"
+              },
+              "snapshot_gate_cron_c3e7f01b": {
+                "type": "DecisionGraph",
+                "id": "snapshot_gate_cron_c3e7f01b",
+                "label": "snapshot_gate_cron",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "create",
+                    "path": "ci/snapshot.py",
+                    "source_files": [
+                      ".github/workflows/build-matrix.yml",
+                      "tests/test_snapshot.py",
+                      "snapshot.txt"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T23:54:31.637700+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T23:55:57.145531+00:00",
+                      "facts": {
+                        "changes_summary": "Added ci/snapshot.py (current/check/write), tests/test_snapshot.py (12 tests), and in build-matrix.yml: schedule cron '0 */6 * * *', force input, snapshot gate job, plan/stage/publish gated on it, record job (contents: write) that commits snapshot.txt after a successful publish.",
+                        "files_changed": [
+                          "ci/snapshot.py",
+                          "tests/test_snapshot.py",
+                          ".github/workflows/build-matrix.yml"
+                        ],
+                        "learning_notes": "git diff ignores untracked files, so the record job uses git status --porcelain or the first run would never create snapshot.txt. Defaults bound at definition time (fetch=fetch_text) defeat mock.patch, so the fetcher is looked up at call time.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T23:55:58.128343+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 53,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_snapshot tests.test_build_all: Ran 53 tests OK. Live: ci/snapshot.py current printed openSUSE-20261024-x86_64-Build6.174; check on a missing file gave changed=true, after write gave changed=false. Workflow parses as YAML: jobs snapshot, plan, stage1, stage2, publish, record; schedule cron '0 */6 * * *'; force input default true; contents: write only on record (grep count 1). Simulated the gate and record shell logic in a temp repo: cron with no file -> build=true; first record commits 'Record openSUSE snapshot ...'; second record says already holds; cron unchanged -> build=false; manual force with unchanged -> build=true; older recorded id -> build=true. Not run: the workflow on GitHub, and git push from the record job."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T23:55:59.114026+00:00",
+                      "facts": {
+                        "review_findings": "Read the workflow diff. Fixed during review: record used git diff which misses the first untracked snapshot.txt. Open: the record job pushes with GITHUB_TOKEN, which fails if main is branch-protected; scheduled workflows stop after 60 days without repo activity; the first scheduled run will build because snapshot.txt does not exist yet; nothing pushed."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T23:56:00.258465+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T23:56:01.310835+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree holds several uncommitted changes; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "ci/snapshot.py",
+                          "tests/test_snapshot.py",
+                          ".github/workflows/build-matrix.yml"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_snapshot_gate_cron_c3e7f01b",
+                      "start": "2026-10-26T23:54:31.033983Z",
+                      "end": "2026-10-26T23:56:01.311810+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "snap.module": "Create ci/snapshot.py (stdlib only): current_snapshot() returns line 2 of https://download.opensuse.org/tumbleweed/repo/oss/media.1/media, e.g. openSUSE-20261024-x86_64-Build6.174",
+                    "snap.state": "read_state(path) returns the first line of snapshot.txt, or '' when the file is missing; write_state(path, id) writes the id and a newline",
+                    "snap.cli": "python3 ci/snapshot.py check snapshot.txt prints lines 'snapshot=ID' and 'changed=true|false' (GITHUB_OUTPUT format); 'write FILE ID' writes the file; 'current' prints the id",
+                    "wf.cron": "build-matrix.yml: add schedule cron '0 */6 * * *'; keep workflow_dispatch and add a boolean input force, default true, so a manual run always builds",
+                    "wf.snapshot_job": "New first job 'snapshot': checkout and run snapshot.py check; outputs changed and snapshot; changed is true when the id differs from snapshot.txt, or on a manual run with force",
+                    "wf.gate": "Jobs plan, stage1, stage2 and publish run only when snapshot.outputs.changed == 'true'; an unchanged cron run ends after the snapshot job",
+                    "wf.record": "New last job 'record' (needs publish, permissions contents: write): snapshot.py write snapshot.txt, commit 'Record openSUSE snapshot ID' as github-actions[bot], push to main; no commit if unchanged",
+                    "wf.record_order": "record runs only after publish succeeded and records the id read at the start of the run, so a snapshot published during the build triggers the next run",
+                    "wf.perms": "Workflow-level permissions stay as now; only the record job gets contents: write; the other jobs keep contents: read",
+                    "tests.new": "tests/test_snapshot.py with mocked network: media text parsing, read_state on a missing file, check output for same, different and missing id, write_state; unittest passes",
+                    "verify.live": "python3 ci/snapshot.py current prints an id like openSUSE-YYYYMMDD-x86_64-BuildN.N; check against a temp file gives changed=true, then changed=false after write",
+                    "verify.yaml": "The workflow parses as YAML; contains schedule and cron; stage jobs reference needs snapshot; contents: write appears only in the record job"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "0c97cbb0618f",
+                  "approved_at": "2026-10-26T23:53:35.999789+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T23:56:01.390179+00:00"
+                },
+                "kind": "work",
+                "description": "Run build-matrix on a cron and only build when the openSUSE Tumbleweed snapshot id differs from snapshot.txt; after a successful publish a record job commits the new id.",
+                "created_at": "2026-10-26T23:52:02.812606Z"
+              },
+              "selective_rebuild_6f7af27e": {
+                "type": "DecisionGraph",
+                "id": "selective_rebuild_6f7af27e",
+                "label": "selective_rebuild",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "ci/snapshot.py",
+                    "source_files": [
+                      "build_all.py",
+                      ".github/workflows/build-matrix.yml",
+                      "tests/test_snapshot.py",
+                      "built-sources.txt"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T23:56:45.729501+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-27T00:06:17.015966+00:00",
+                      "facts": {
+                        "changes_summary": "ci/snapshot.py: built-sources.txt read/write, config_hash, dirty_packages. ci/fetch_srpms.py: oss_source_files, release_source_files, published_rpms, carry_over. build_all.py: current_sources, plan_matrix, --state/--all/--write-state/--carry-over/--carry; --matrix JSON now has stage entries {name, carry}, dirty and carry lists. build-matrix.yml: weekly cron and full input, plan uploads the new state, stages take matrix.include with carry, publish carries over unchanged packages, record commits snapshot.txt and built-sources.txt. README section. 83 tests.",
+                        "files_changed": [
+                          "ci/snapshot.py",
+                          "ci/fetch_srpms.py",
+                          "build_all.py",
+                          ".github/workflows/build-matrix.yml",
+                          "tests/test_snapshot.py",
+                          "tests/test_build_all.py",
+                          "README.md"
+                        ],
+                        "learning_notes": "A dirty package can depend on one that is not rebuilt, so each entry carries the published RPMs of those dependencies; a package whose dependencies are all unchanged belongs in stage1. The published site is the store for unchanged packages' RPMs, mapped to packages by rpm:sourcerpm.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-27T00:06:18.277713+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 83,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "python3 -m unittest tests.test_build_all tests.test_snapshot: Ran 83 tests OK. Real --matrix with no state: 12 dirty, stage1 10 packages, stage2 ffmpeg-9 and gstreamer-plugins-bad-codecs; --write-state wrote 12 lines. Against that state: stage1 and stage2 empty, dirty [], carry 12. With vvenc marked changed: stage1 vvenc, stage2 ffmpeg-9, dirty [vvenc, ffmpeg-9], the other 10 carried. With faac changed: stage1 faac, stage2 gstreamer-plugins-bad-codecs with carry libde265. carry_over against the live Pages site downloaded 7 RPMs for vvenc, libde265 and fdk-aac and reported 'nonexistent' as missing; published_rpms mapped all 65 live RPMs to 12 source packages. Workflow parses as YAML: jobs snapshot, plan, stage1, stage2, publish, record; two crons; force and full inputs; contents: write only on record. Not run on GitHub."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-27T00:06:19.426562+00:00",
+                      "facts": {
+                        "review_findings": "Read the workflow and build_all.py diff. Open: not run on GitHub yet; the first run has no built-sources.txt so everything is dirty; the record job needs push access to main (fails on branch protection); a carry of a package the site does not have fails the publish with a message pointing at a full rebuild; the config hash does not cover build_all.py changes; external devel updates are only caught by the weekly full run. Nothing is pushed."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-27T00:06:20.662361+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-27T00:06:21.917636+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree holds several uncommitted changes; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "ci/snapshot.py",
+                          "ci/fetch_srpms.py",
+                          "build_all.py",
+                          ".github/workflows/build-matrix.yml",
+                          "tests/test_snapshot.py",
+                          "tests/test_build_all.py",
+                          "README.md"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_selective_rebuild_6f7af27e",
+                      "start": "2026-10-26T23:56:44.782249Z",
+                      "end": "2026-10-27T00:06:21.918462+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "depends_on": [
+                    "snapshot_gate_cron_c3e7f01b"
+                  ],
+                  "goals": {
+                    "state.file": "built-sources.txt: one line per package 'name<TAB>SRPM file name<TAB>config hash'; read and write helpers in ci/snapshot.py; a missing file means every package is dirty",
+                    "state.hash": "Config hash = sha256 over the package's line in ci/packages.txt, the content of its SPEC_PATCH file if any, and the Dockerfile and build-srpm.sh content",
+                    "sources.current": "The SRPM file now available per package without downloading: OSS from primary.xml (fetch_srpms.parse_primary), others the newest matching asset of the releases",
+                    "dirty.rule": "A package is dirty when its SRPM file name or config hash differs from built-sources.txt; dirtiness spreads to packages that depend on it through the kept build edges",
+                    "matrix.dirty": "build_all.py --matrix lists only dirty packages in stage1 and stage2; --matrix --all lists every package, which the force input and the weekly run use",
+                    "carry.over": "build_all.py --carry-over SITE_URL downloads the RPMs of non-dirty packages from the published site into out-all/ before staging; primary.xml rpm:sourcerpm maps each RPM to its package",
+                    "wf.publish": "publish downloads the rebuilt packages' artifacts, runs --carry-over for the rest, stages the site; record writes snapshot.txt and built-sources.txt in one commit",
+                    "wf.empty": "When nothing is dirty the stages are empty: stage, publish and record jobs are skipped, and snapshot.txt is still updated so the next run compares against the new id",
+                    "wf.weekly": "A second cron '0 3 * * 1' forces a full rebuild, because a VideoLAN or openSUSE devel update can change an ABI that the per-package check cannot see",
+                    "tests.dirty": "Tests: changed SRPM name marks dirty; changed config hash marks dirty; dependents of a dirty package are dirty; unchanged set is empty; carry-over maps sourcerpm to package; unittest passes",
+                    "verify.local": "With a built-sources.txt matching today's sources python3 build_all.py --matrix prints empty stages; after changing one line in it only that package and its dependents appear"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "08e3b7c216e8",
+                  "approved_at": "2026-10-26T23:53:36.541455+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-27T00:06:21.999180+00:00"
+                },
+                "kind": "work",
+                "description": "On a changed snapshot rebuild only the packages whose source RPM or build config changed, plus their dependents; carry the other packages' RPMs over from the published site.",
+                "created_at": "2026-10-26T23:52:03.866225Z"
+              },
+              "set_rpm_vendor_f3967814": {
+                "type": "DecisionGraph",
+                "id": "set_rpm_vendor_f3967814",
+                "label": "set_rpm_vendor",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "Dockerfile"
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T23:53:46.979920+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T23:54:26.624019+00:00",
+                      "facts": {
+                        "changes_summary": "Dockerfile: RUN writing /etc/rpm/macros.vendor with '%vendor tw-codecs', with a comment on why.",
+                        "files_changed": [
+                          "Dockerfile"
+                        ],
+                        "learning_notes": "Unlike %optflags, %vendor is not set at the rpmrc level, so a macro file works; it was simply undefined in the container.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T23:54:27.806058+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 41,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "podman build then rpm --eval %vendor prints tw-codecs. build_all.py --only faac exit 0; rpm -qp --qf '%{VENDOR}' prints tw-codecs for libfaac0, faac and faac-devel. Before the change the published repo's primary.xml had an empty vendor for every package. Not checked: zypper's behaviour with the new vendor on an installed system."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T23:54:28.979468+00:00",
+                      "facts": {
+                        "review_findings": "Dockerfile diff is one RUN plus a comment. Already published packages keep an empty vendor until the next full run; installed packages change vendor only when upgraded from the repo; zypper may then ask about a vendor change from packman/openSUSE (use --allow-vendor-change once). Not pushed."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T23:54:29.806896+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T23:54:30.426087+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree holds several uncommitted changes; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "Dockerfile"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_set_rpm_vendor_f3967814",
+                      "start": "2026-10-26T23:53:46.149304Z",
+                      "end": "2026-10-26T23:54:30.426477+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "fix.macro": "Dockerfile: a RUN after the /etc/rpmrc one writes /etc/rpm/macros.vendor with the single line: %vendor tw-codecs",
+                    "fix.comment": "Comment above it: OBS sets %vendor in prjconf; without it RPMs have no vendor, so zypper shows no repo name and applies no vendor stickiness; zypper compares the first word of the vendor string",
+                    "verify.eval": "After podman build -t srpm-builder ., podman run --rm --entrypoint bash srpm-builder -c 'rpm --eval %vendor' prints tw-codecs",
+                    "verify.rpm": "build_all.py --only faac, then rpm -qp --qf '%{VENDOR}' on the built libfaac0 RPM prints tw-codecs",
+                    "verify.note": "Report that already published packages keep an empty vendor until the next full run, and that installed ones change vendor only when upgraded from the repo"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "d0547eb0ad4e",
+                  "approved_at": "2026-10-26T23:53:35.461683+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T23:54:30.464651+00:00"
+                },
+                "kind": "work",
+                "description": "Give every RPM built in the container the Vendor 'tw-codecs' (empty today): the openSUSE build service sets %vendor in its project config, the container leaves it undefined.",
+                "created_at": "2026-10-26T23:52:52.909405Z"
+              },
+              "obs_drop_vlc_and_32bit_cleanup_263e91bc": {
+                "type": "DecisionGraph",
+                "id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+                "label": "obs_drop_vlc_and_32bit_cleanup",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "ci/obs-pipewire-only.sed",
+                    "source_files": [
+                      "ci/packages.txt",
+                      "tests/test_build_all.py"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-27T00:45:39.648944+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-27T00:46:53.709093+00:00",
+                      "facts": {
+                        "changes_summary": "ci/obs-pipewire-only.sed: ENABLE_VLC=OFF and the pkgconfig(vlc-plugin) BuildRequires removed, header updated. ci/packages.txt: vvenc plain, fdk-aac line removed. ci/baselibs/ deleted. tests/test_build_all.py: two tests use temporary files instead of ci/baselibs. The 32-bit code in build-srpm.sh and build_all.py is untouched.",
+                        "files_changed": [
+                          "ci/obs-pipewire-only.sed",
+                          "ci/packages.txt",
+                          "ci/baselibs/fdk-aac.conf",
+                          "ci/baselibs/vvenc.conf",
+                          "tests/test_build_all.py"
+                        ],
+                        "learning_notes": "ENABLE_VLC is a real upstream option (plugins/vlc-video/CMakeLists.txt); the vlc-plugin BuildRequires pulled in the whole VLC stack, so the dependency closure fell from 679 to 547 packages.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-27T01:12:13.050570+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 93,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "ci/packages.txt: vvenc is plain, the fdk-aac line is gone, obs-studio is plain; ci/baselibs/ and ci/obs-pipewire-only.sed are deleted; nothing in the repo mentions them. python3 -m unittest tests.test_build_all tests.test_snapshot: Ran 93 tests OK. build_all.py --only obs-studio with the stock spec (VideoLAN repo at priority 70, hardened flags, Vendor tw-codecs): exit 0; the RPM has the full plugin set. The earlier stripped variant (PipeWire-only, no VLC) was built and verified, then dropped at the user's request."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-27T01:12:20.244387+00:00",
+                      "facts": {
+                        "review_findings": "The stripped obs-studio patch was verified and then deliberately dropped at the user's request; stock obs-studio builds with exit 0 and the full plugin set. The 32-bit build code in build-srpm.sh and build_all.py stays but nothing uses it. Not pushed."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-27T01:12:21.047878+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-27T01:12:21.936278+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "the user asked for one combined commit and push of everything after the cron change; it is made in the cron work item's run",
+                        "files_changed": [
+                          "ci/packages.txt",
+                          "ci/obs-pipewire-only.sed",
+                          "ci/baselibs/fdk-aac.conf",
+                          "ci/baselibs/vvenc.conf",
+                          "tests/test_build_all.py"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_obs_drop_vlc_and_32bit_cleanup_263e91bc",
+                      "start": "2026-10-27T00:45:38.732424Z",
+                      "end": "2026-10-27T01:12:21.937109+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "pkgs.vvenc": "ci/packages.txt: the vvenc line becomes plain 'vvenc' (no ARCH, no BASELIBS)",
+                    "pkgs.fdk": "ci/packages.txt: delete the fdk-aac line; ffmpeg-9 builds against fdk-aac-devel from a repo, not from this package",
+                    "files.baselibs": "Delete ci/baselibs/fdk-aac.conf and ci/baselibs/vvenc.conf, which only those two lines used",
+                    "tests.baselibs": "tests/test_build_all.py: the baselibs-file test creates its own temporary file instead of reading ci/baselibs/fdk-aac.conf; unittest passes; the 32-bit build code in build-srpm.sh and build_all.py stays",
+                    "obs.revert": "ci/packages.txt: the obs-studio line is plain 'obs-studio' (no SPEC_PATCH); ci/obs-pipewire-only.sed is deleted; no other file mentions it",
+                    "obs.verify_stock": "build_all.py --only obs-studio exits 0 with the stock spec in the builder image (VideoLAN repo at priority 70); report any dependency problem from that repo, such as a vlc-devel it cannot install"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "e6fb9ae4ee2e",
+                  "approved_at": "2026-10-27T00:45:37.619147+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-27T01:12:21.989834+00:00"
+                },
+                "kind": "work",
+                "description": "Keep obs-studio stock (the PipeWire-only patch is dropped: the extra libraries it avoids do not matter) and remove the 32-bit leftovers from the package list.",
+                "created_at": "2026-10-27T00:45:24.300119Z"
+              },
+              "cron_every_15_minutes_18f1f94c": {
+                "type": "DecisionGraph",
+                "id": "cron_every_15_minutes_18f1f94c",
+                "label": "cron_every_15_minutes",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": ".github/workflows/build-matrix.yml",
+                    "source_files": [
+                      "README.md"
+                    ]
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-27T01:12:23.993016+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-27T01:13:13.530828+00:00",
+                      "facts": {
+                        "changes_summary": "build-matrix.yml: cron '*/15 * * * *' replaces '0 */6 * * *', header comment explains the cadence and concurrency; README says every 15 minutes. Weekly full-rebuild cron unchanged.",
+                        "files_changed": [
+                          ".github/workflows/build-matrix.yml",
+                          "README.md"
+                        ],
+                        "learning_notes": "The user's '15 * * * *' means hourly at :15; every 15 minutes is '*/15 * * * *'. Concurrency keeps one run waiting, so a 15-minute cadence queues at most one run behind a long build.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-27T01:13:14.283985+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 93,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "Workflow parses as YAML; schedule is exactly ['*/15 * * * *', '0 3 * * 1']; the FULL expression still compares github.event.schedule to '0 3 * * 1'; python3 -m unittest: Ran 93 tests OK. Pushed as ef444a87f5f273253984ff213d896c361ef20b1d (ls-remote origin main equals HEAD). Not yet observed: the first scheduled run on GitHub."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-27T01:13:15.123438+00:00",
+                      "facts": {
+                        "review_findings": "Small diff, checked in the push. Open: GitHub may delay or skip scheduled runs; the first scheduled run has no snapshot.txt or built-sources.txt so it builds everything and its record job must be able to push to main; the combined commit also carried all earlier uncommitted work."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-27T01:13:16.048188+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-27T01:13:16.962090+00:00",
+                      "facts": {
+                        "commits": [
+                          {
+                            "hash": "ef444a87f5f273253984ff213d896c361ef20b1d",
+                            "source": "."
+                          }
+                        ],
+                        "files_changed": [
+                          ".github/workflows/build-matrix.yml",
+                          "README.md"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_cron_every_15_minutes_18f1f94c",
+                      "start": "2026-10-27T01:12:22.958917Z",
+                      "end": "2026-10-27T01:13:16.962659+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "wf.cron": "build-matrix.yml: replace the cron '0 */6 * * *' with '*/15 * * * *'; keep the weekly '0 3 * * 1' full-rebuild cron and the FULL expression that compares github.event.schedule to it",
+                    "wf.comment": "Update the header comment to say it runs every 15 minutes, that GitHub may delay or skip scheduled runs, and that concurrency keeps at most one run waiting, which sees the recorded snapshot and stops",
+                    "docs.readme": "README.md: change '(every 6 hours)' to '(every 15 minutes)' and keep the rest of that section accurate",
+                    "verify.yaml": "The workflow parses as YAML, schedule has exactly the two crons '*/15 * * * *' and '0 3 * * 1', and python3 -m unittest passes"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "623d4a1f966a",
+                  "approved_at": "2026-10-27T00:52:27.142923+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-27T01:13:17.015600+00:00"
+                },
+                "kind": "work",
+                "description": "Check for a new openSUSE snapshot every 15 minutes instead of every 6 hours; the snapshot gate and per-package check already make an unchanged run cost seconds.",
+                "created_at": "2026-10-27T00:52:16.019614Z"
+              }
+            },
+            "kind": "component",
+            "created_at": "2026-10-26T21:28:25.089072Z"
+          },
+          "comp_cli_tooling": {
+            "type": "DecisionGraph",
+            "id": "comp_cli_tooling",
+            "label": "cli-tooling (component)",
+            "description": "Component group for cli-tooling domain",
+            "node": {
+              "kind": "component",
+              "role": "namespace"
+            },
+            "children": {
+              "builder_hardening_flags_7ebbc3dd": {
+                "type": "DecisionGraph",
+                "id": "builder_hardening_flags_7ebbc3dd",
+                "label": "builder_hardening_flags",
+                "node": {
+                  "kind": "work",
+                  "state": "completed",
+                  "work_type": "implement",
+                  "target": {
+                    "operation": "edit",
+                    "path": "Dockerfile"
+                  },
+                  "evidence": [
+                    {
+                      "kind": "step",
+                      "step": "understand_auto",
+                      "recorded_at": "2026-10-26T23:47:59.207683+00:00",
+                      "facts": {
+                        "execution_mode": "inline",
+                        "orchestrator_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "implement",
+                      "recorded_at": "2026-10-26T23:51:13.822004+00:00",
+                      "facts": {
+                        "changes_summary": "Dockerfile: /etc/rpmrc with optflags: x86_64 <hardened string>, with a comment. First attempt (/etc/rpm/macros.tw-codecs) did not work: rpm defines optflags at the rpmrc level, which outranks macro files.",
+                        "files_changed": [
+                          "Dockerfile"
+                        ],
+                        "learning_notes": "rpm --showrc shows optflags at level -11 (rpmrc); macro files, /etc/rpm/macros and ~/.config/rpm/macros all lose to it. Only /etc/rpmrc or a --define on the command line wins.",
+                        "dispatch_model": 1
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "verify",
+                      "recorded_at": "2026-10-26T23:51:15.030602+00:00",
+                      "facts": {
+                        "tests_verified": {
+                          "./": {
+                            "tests_passed": 41,
+                            "test_failed": 0
+                          }
+                        },
+                        "acceptance_evidence": "podman build then rpm --eval %optflags prints exactly '-fcf-protection -O2 -Wall -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-protector-strong -funwind-tables -fasynchronous-unwind-tables -fstack-clash-protection -Werror=return-type -g'. build_all.py --only faac exit 0; its log has CFLAGS and CXXFLAGS with the hardened string and 23 compile lines for each of -D_FORTIFY_SOURCE=3, -fstack-protector-strong, -fstack-clash-protection, -fcf-protection; no -Werror=return-type failure. readelf -n on the built libfaac.so.0.0.0: 'x86 feature: IBT, SHSTK'; readelf -sW shows 4 fortify/stack-check symbols. The first attempt via /etc/rpm/macros.tw-codecs failed rpm --eval and was replaced. Not rebuilt: the other packages with the new flags."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "review",
+                      "recorded_at": "2026-10-26T23:51:16.216107+00:00",
+                      "facts": {
+                        "review_findings": "Dockerfile diff reviewed. The flags apply to every x86_64 package built in the image, but only faac was rebuilt to check. Open: ffmpeg-9, mesa and the other packages are untested with -Werror=return-type; the next full run will show whether any breaks. Not pushed."
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "reinforce_insights",
+                      "recorded_at": "2026-10-26T23:51:17.407655+00:00",
+                      "facts": {
+                        "insight_verdict": []
+                      }
+                    },
+                    {
+                      "kind": "step",
+                      "step": "commit",
+                      "recorded_at": "2026-10-26T23:51:18.486011+00:00",
+                      "facts": {
+                        "commit_skipped_reason": "working tree holds several uncommitted changes; committing and pushing wait for the user's go-ahead",
+                        "files_changed": [
+                          "Dockerfile"
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "runs",
+                      "playbook_run_id": "run_implement_work_builder_hardening_flags_7ebbc3dd",
+                      "start": "2026-10-26T23:47:58.041267Z",
+                      "end": "2026-10-26T23:51:18.486579+00:00",
+                      "model": "haiku"
+                    }
+                  ],
+                  "goals": {
+                    "fix.macro": "Dockerfile: add a RUN after the package install that writes /etc/rpm/macros.tw-codecs with one line: %optflags set to the hardened string in goal fix.string",
+                    "fix.string": "The string: -fcf-protection -O2 -Wall -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-protector-strong -funwind-tables -fasynchronous-unwind-tables -fstack-clash-protection -Werror=return-type -g",
+                    "fix.comment": "Comment above the RUN: why (OBS prjconf sets these, the container has the old rpm default), and that /etc/rpm/macros.* is read after the platform macros so it wins",
+                    "verify.eval": "After podman build -t srpm-builder ., podman run --rm --entrypoint bash srpm-builder -c 'rpm --eval %optflags' prints exactly the string in fix.string",
+                    "verify.flags": "build_all.py --only faac: the compile lines in the log contain -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fstack-clash-protection -fcf-protection",
+                    "verify.binary": "readelf -n on the built libfaac.so shows x86 feature IBT and SHSTK (from -fcf-protection) and readelf -s lists __stack_chk_fail or __memcpy_chk; report if not",
+                    "verify.report": "Report the real result; if -Werror=return-type breaks faac, say so and propose dropping that one flag instead of hiding it"
+                  },
+                  "created_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "approved_for_assignment": true,
+                  "approval_content_hash": "01700e9a40b8",
+                  "approved_at": "2026-10-26T23:44:52.355648+00:00",
+                  "approved_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "completed_by_session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+                  "done_at": "2026-10-26T23:51:18.538538+00:00"
+                },
+                "kind": "work",
+                "description": "Give the builder image SUSE's hardened %optflags (FORTIFY 3, strong stack protector, stack-clash, CET), which the openSUSE build service sets in its project config and the plain container lacks.",
+                "created_at": "2026-10-26T23:44:41.493479Z"
+              }
+            },
+            "kind": "component",
+            "created_at": "2026-10-26T23:44:41.515158Z"
+          }
+        },
+        "kind": "component",
+        "created_at": "2026-10-26T21:28:25.088825Z"
+      }
+    },
+    "kind": "topic",
+    "created_at": "2026-10-26T21:28:25.088088Z"
+  },
+  "designs": {
+    "type": "DecisionGraph",
+    "id": "designs",
+    "label": "Designs",
+    "description": "Per-kind root for design components (dc_*)",
+    "node": {
+      "kind": "topic"
+    },
+    "children": {}
+  },
+  "tasks": null,
+  "draft_designs": {
+    "type": "DecisionGraph",
+    "id": "draft_designs",
+    "label": "Draft Designs",
+    "description": "Draft design containers awaiting promotion",
+    "node": {
+      "kind": "topic"
+    },
+    "children": {}
+  },
+  "facts": {
+    "type": "DecisionGraph",
+    "id": "facts",
+    "label": "Facts",
+    "description": "Per-kind root for fact nodes",
+    "node": {
+      "kind": "topic"
+    },
+    "children": {}
+  },
+  "mindmaps": {
+    "misc": {
+      "id": "mindmap_misc",
+      "label": "misc knowledge",
+      "nodes": {},
+      "edges": {}
+    },
+    "cli-tooling": {
+      "id": "mindmap_cli_tooling",
+      "label": "cli-tooling knowledge",
+      "nodes": {},
+      "edges": {}
+    }
+  },
+  "mindmap_links": null,
+  "playbook_runs": {
+    "run_implement_work_obs_drop_vlc_and_32bit_cleanup_263e91bc": {
+      "type": "PlaybookRun",
+      "created_at": "2026-10-27T00:45:38.732424Z",
+      "updated_at": "2026-10-27T01:12:21.993124Z",
+      "id": "run_implement_work_obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "playbook_id": "implement_work",
+      "playbook_path": null,
+      "label": null,
+      "mode": "auto",
+      "model": 0,
+      "effort": null,
+      "source": {
+        "knowledge_file": null,
+        "node_path": "/works/children/components/children/comp_misc/children/obs_drop_vlc_and_32bit_cleanup_263e91bc",
+        "node_type": "DecisionGraph",
+        "description": null
+      },
+      "target": null,
+      "params": null,
+      "state": "completed",
+      "current_session_alias": "Cool Turtle Papaya",
+      "current_session_name": null,
+      "last_activity_at": "2026-10-27T01:12:18.690521Z",
+      "current_step": null,
+      "current_step_started_at": null,
+      "dispatched_at": null,
+      "playbook_version": null,
+      "step_history": [
+        {
+          "step_id": "understand_auto",
+          "timestamp": "2026-10-27T00:45:39.648846Z",
+          "started_at": "2026-10-27T00:45:38.731840Z",
+          "facts": {
+            "execution_mode": "inline",
+            "orchestrator_model": 1
+          }
+        },
+        {
+          "step_id": "implement",
+          "timestamp": "2026-10-27T00:46:53.709002Z",
+          "started_at": "2026-10-27T00:45:39.648846Z",
+          "facts": {
+            "changes_implemented": true,
+            "changes_summary": "ci/obs-pipewire-only.sed: ENABLE_VLC=OFF and the pkgconfig(vlc-plugin) BuildRequires removed, header updated. ci/packages.txt: vvenc plain, fdk-aac line removed. ci/baselibs/ deleted. tests/test_build_all.py: two tests use temporary files instead of ci/baselibs. The 32-bit code in build-srpm.sh and build_all.py is untouched.",
+            "files_changed": [
+              "ci/obs-pipewire-only.sed",
+              "ci/packages.txt",
+              "ci/baselibs/fdk-aac.conf",
+              "ci/baselibs/vvenc.conf",
+              "tests/test_build_all.py"
+            ],
+            "learning_notes": "ENABLE_VLC is a real upstream option (plugins/vlc-video/CMakeLists.txt); the vlc-plugin BuildRequires pulled in the whole VLC stack, so the dependency closure fell from 679 to 547 packages.",
+            "dispatch_model": 1
+          }
+        },
+        {
+          "step_id": "verify",
+          "timestamp": "2026-10-27T01:12:13.050486Z",
+          "started_at": "2026-10-27T00:46:53.709002Z",
+          "facts": {
+            "acceptance_passed": true,
+            "tests_verified": {
+              "./": {
+                "tests_passed": 93,
+                "test_failed": 0
+              }
+            },
+            "acceptance_evidence": "ci/packages.txt: vvenc is plain, the fdk-aac line is gone, obs-studio is plain; ci/baselibs/ and ci/obs-pipewire-only.sed are deleted; nothing in the repo mentions them. python3 -m unittest tests.test_build_all tests.test_snapshot: Ran 93 tests OK. build_all.py --only obs-studio with the stock spec (VideoLAN repo at priority 70, hardened flags, Vendor tw-codecs): exit 0; the RPM has the full plugin set. The earlier stripped variant (PipeWire-only, no VLC) was built and verified, then dropped at the user's request."
+          }
+        },
+        {
+          "step_id": "review",
+          "timestamp": "2026-10-27T01:12:20.244297Z",
+          "started_at": "2026-10-27T01:12:13.050486Z",
+          "facts": {
+            "orchestrator_approved": true,
+            "review_findings": "The stripped obs-studio patch was verified and then deliberately dropped at the user's request; stock obs-studio builds with exit 0 and the full plugin set. The 32-bit build code in build-srpm.sh and build_all.py stays but nothing uses it. Not pushed."
+          }
+        },
+        {
+          "step_id": "reinforce_insights",
+          "timestamp": "2026-10-27T01:12:21.047788Z",
+          "started_at": "2026-10-27T01:12:20.244297Z",
+          "facts": {
+            "insight_verdicts_recorded": true,
+            "insight_verdict": []
+          }
+        },
+        {
+          "step_id": "commit",
+          "timestamp": "2026-10-27T01:12:21.936953Z",
+          "started_at": "2026-10-27T01:12:21.047788Z",
+          "facts": {
+            "commit_skipped_reason": "the user asked for one combined commit and push of everything after the cron change; it is made in the cron work item's run",
+            "commits_complete": true
+          }
+        }
+      ],
+      "facts": {
+        "execution_mode": "inline",
+        "orchestrator_model": 1,
+        "changes_implemented": true,
+        "changes_summary": "ci/obs-pipewire-only.sed: ENABLE_VLC=OFF and the pkgconfig(vlc-plugin) BuildRequires removed, header updated. ci/packages.txt: vvenc plain, fdk-aac line removed. ci/baselibs/ deleted. tests/test_build_all.py: two tests use temporary files instead of ci/baselibs. The 32-bit code in build-srpm.sh and build_all.py is untouched.",
+        "files_changed": [
+          "ci/packages.txt",
+          "ci/obs-pipewire-only.sed",
+          "ci/baselibs/fdk-aac.conf",
+          "ci/baselibs/vvenc.conf",
+          "tests/test_build_all.py"
+        ],
+        "learning_notes": "ENABLE_VLC is a real upstream option (plugins/vlc-video/CMakeLists.txt); the vlc-plugin BuildRequires pulled in the whole VLC stack, so the dependency closure fell from 679 to 547 packages.",
+        "dispatch_model": 1,
+        "acceptance_passed": true,
+        "tests_verified": {
+          "./": {
+            "tests_passed": 93,
+            "test_failed": 0
+          }
+        },
+        "acceptance_evidence": "ci/packages.txt: vvenc is plain, the fdk-aac line is gone, obs-studio is plain; ci/baselibs/ and ci/obs-pipewire-only.sed are deleted; nothing in the repo mentions them. python3 -m unittest tests.test_build_all tests.test_snapshot: Ran 93 tests OK. build_all.py --only obs-studio with the stock spec (VideoLAN repo at priority 70, hardened flags, Vendor tw-codecs): exit 0; the RPM has the full plugin set. The earlier stripped variant (PipeWire-only, no VLC) was built and verified, then dropped at the user's request.",
+        "orchestrator_approved": true,
+        "review_findings": "The stripped obs-studio patch was verified and then deliberately dropped at the user's request; stock obs-studio builds with exit 0 and the full plugin set. The 32-bit build code in build-srpm.sh and build_all.py stays but nothing uses it. Not pushed.",
+        "insight_verdicts_recorded": true,
+        "insight_verdict": [],
+        "commit_skipped_reason": "the user asked for one combined commit and push of everything after the cron change; it is made in the cron work item's run",
+        "commits_complete": true,
+        "completed_at": "2026-10-27T01:12:21.937168Z"
+      },
+      "retry_context": null,
+      "run_key": "c9362434d292e678423cffd08003ff06",
+      "queue_entry_id": "entry_implement_work_obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "operational": null,
+      "queued": null,
+      "agent_id": null,
+      "step_dispatch": null
+    },
+    "run_implement_work_cron_every_15_minutes_18f1f94c": {
+      "type": "PlaybookRun",
+      "created_at": "2026-10-27T01:12:22.958917Z",
+      "updated_at": "2026-10-27T01:13:17.018902Z",
+      "id": "run_implement_work_cron_every_15_minutes_18f1f94c",
+      "playbook_id": "implement_work",
+      "playbook_path": null,
+      "label": null,
+      "mode": "auto",
+      "model": 0,
+      "effort": null,
+      "source": {
+        "knowledge_file": null,
+        "node_path": "/works/children/components/children/comp_misc/children/cron_every_15_minutes_18f1f94c",
+        "node_type": "DecisionGraph",
+        "description": null
+      },
+      "target": null,
+      "params": null,
+      "state": "completed",
+      "current_session_alias": "Cool Turtle Papaya",
+      "current_session_name": null,
+      "last_activity_at": "2026-10-27T01:13:11.339037Z",
+      "current_step": null,
+      "current_step_started_at": null,
+      "dispatched_at": null,
+      "playbook_version": null,
+      "step_history": [
+        {
+          "step_id": "understand_auto",
+          "timestamp": "2026-10-27T01:12:23.992883Z",
+          "started_at": "2026-10-27T01:12:22.957166Z",
+          "facts": {
+            "execution_mode": "inline",
+            "orchestrator_model": 1
+          }
+        },
+        {
+          "step_id": "implement",
+          "timestamp": "2026-10-27T01:13:13.530647Z",
+          "started_at": "2026-10-27T01:12:23.992883Z",
+          "facts": {
+            "changes_implemented": true,
+            "changes_summary": "build-matrix.yml: cron '*/15 * * * *' replaces '0 */6 * * *', header comment explains the cadence and concurrency; README says every 15 minutes. Weekly full-rebuild cron unchanged.",
+            "files_changed": [
+              ".github/workflows/build-matrix.yml",
+              "README.md"
+            ],
+            "learning_notes": "The user's '15 * * * *' means hourly at :15; every 15 minutes is '*/15 * * * *'. Concurrency keeps one run waiting, so a 15-minute cadence queues at most one run behind a long build.",
+            "dispatch_model": 1
+          }
+        },
+        {
+          "step_id": "verify",
+          "timestamp": "2026-10-27T01:13:14.283904Z",
+          "started_at": "2026-10-27T01:13:13.530647Z",
+          "facts": {
+            "acceptance_passed": true,
+            "tests_verified": {
+              "./": {
+                "tests_passed": 93,
+                "test_failed": 0
+              }
+            },
+            "acceptance_evidence": "Workflow parses as YAML; schedule is exactly ['*/15 * * * *', '0 3 * * 1']; the FULL expression still compares github.event.schedule to '0 3 * * 1'; python3 -m unittest: Ran 93 tests OK. Pushed as ef444a87f5f273253984ff213d896c361ef20b1d (ls-remote origin main equals HEAD). Not yet observed: the first scheduled run on GitHub."
+          }
+        },
+        {
+          "step_id": "review",
+          "timestamp": "2026-10-27T01:13:15.123353Z",
+          "started_at": "2026-10-27T01:13:14.283904Z",
+          "facts": {
+            "orchestrator_approved": true,
+            "review_findings": "Small diff, checked in the push. Open: GitHub may delay or skip scheduled runs; the first scheduled run has no snapshot.txt or built-sources.txt so it builds everything and its record job must be able to push to main; the combined commit also carried all earlier uncommitted work."
+          }
+        },
+        {
+          "step_id": "reinforce_insights",
+          "timestamp": "2026-10-27T01:13:16.048106Z",
+          "started_at": "2026-10-27T01:13:15.123353Z",
+          "facts": {
+            "insight_verdicts_recorded": true,
+            "insight_verdict": []
+          }
+        },
+        {
+          "step_id": "commit",
+          "timestamp": "2026-10-27T01:13:16.962547Z",
+          "started_at": "2026-10-27T01:13:16.048106Z",
+          "facts": {
+            "commits": [
+              {
+                "hash": "ef444a87f5f273253984ff213d896c361ef20b1d",
+                "source": "."
+              }
+            ],
+            "commits_complete": true
+          }
+        }
+      ],
+      "facts": {
+        "execution_mode": "inline",
+        "orchestrator_model": 1,
+        "changes_implemented": true,
+        "changes_summary": "build-matrix.yml: cron '*/15 * * * *' replaces '0 */6 * * *', header comment explains the cadence and concurrency; README says every 15 minutes. Weekly full-rebuild cron unchanged.",
+        "files_changed": [
+          ".github/workflows/build-matrix.yml",
+          "README.md"
+        ],
+        "learning_notes": "The user's '15 * * * *' means hourly at :15; every 15 minutes is '*/15 * * * *'. Concurrency keeps one run waiting, so a 15-minute cadence queues at most one run behind a long build.",
+        "dispatch_model": 1,
+        "acceptance_passed": true,
+        "tests_verified": {
+          "./": {
+            "tests_passed": 93,
+            "test_failed": 0
+          }
+        },
+        "acceptance_evidence": "Workflow parses as YAML; schedule is exactly ['*/15 * * * *', '0 3 * * 1']; the FULL expression still compares github.event.schedule to '0 3 * * 1'; python3 -m unittest: Ran 93 tests OK. Pushed as ef444a87f5f273253984ff213d896c361ef20b1d (ls-remote origin main equals HEAD). Not yet observed: the first scheduled run on GitHub.",
+        "orchestrator_approved": true,
+        "review_findings": "Small diff, checked in the push. Open: GitHub may delay or skip scheduled runs; the first scheduled run has no snapshot.txt or built-sources.txt so it builds everything and its record job must be able to push to main; the combined commit also carried all earlier uncommitted work.",
+        "insight_verdicts_recorded": true,
+        "insight_verdict": [],
+        "commits": [
+          {
+            "hash": "ef444a87f5f273253984ff213d896c361ef20b1d",
+            "source": "."
+          }
+        ],
+        "commits_complete": true,
+        "completed_at": "2026-10-27T01:13:16.962709Z"
+      },
+      "retry_context": null,
+      "run_key": "ed1ddebd581da77a2bd72dc7a1b94866",
+      "queue_entry_id": "entry_implement_work_cron_every_15_minutes_18f1f94c",
+      "operational": null,
+      "queued": null,
+      "agent_id": null,
+      "step_dispatch": null
+    }
+  },
+  "queue_lanes": {
+    "misc_2": {
+      "type": "QueueLane",
+      "id": "misc_2",
+      "member_entry_ids": [],
+      "current_active_entry_id": null,
+      "updated_at": "2026-10-27T01:13:17.019221Z"
+    }
+  },
+  "queue_entries": {},
+  "implementer_registry": {},
+  "interactions": null,
+  "settings": {
+    "auto_commit_on_completion": {
+      "value": true,
+      "description": "Auto-raise commit interaction when WorkNode completes with file_changes evidence"
+    },
+    "auto_enqueue": {
+      "value": true,
+      "description": "When on, ready work is always enqueued; the orchestrator only picks lanes, never whether to run it."
+    },
+    "max_concurrent_works": {
+      "value": 3,
+      "description": "Maximum number of WorkNodes in the running state concurrently"
+    },
+    "models": {
+      "value": {
+        "claude-code": {
+          "updated_at": null,
+          "list": [
+            {
+              "model": "haiku",
+              "effort": "medium"
+            },
+            {
+              "model": "sonnet",
+              "effort": "medium"
+            },
+            {
+              "model": "opus",
+              "effort": "medium"
+            }
+          ],
+          "current": 0
+        }
+      },
+      "description": "Model configuration per agentic provider, keyed by agent_provider() (e.g. 'claude-code'). Each entry: the active model+effort and an escalation ladder whose rungs carry their own effort."
+    },
+    "enable_works_approval": {
+      "value": true,
+      "description": "Whether a captured WorkNode REQUIRES approval before it can be assigned (the gate itself, as opposed to enable_dialogs which is presentation only)"
+    },
+    "enable_dialogs": {
+      "value": true,
+      "description": "presentation only -- interactive dialogs vs plain textual messages; does not gate whether approval is required (see enable_works_approval)"
+    },
+    "only_external_approvals": {
+      "value": false,
+      "description": "When true, approvals are decided entirely outside the session. No approval cards, no AskUserQuestion, no approvals move, no Stop-hook block -- only external decision reports. Takes precedence over enable_dialogs for approvals."
+    },
+    "enable_constraint_enforcement": {
+      "value": true,
+      "description": "Enable Stop-hook constraint freshness enforcement and automatic repair-work creation."
+    },
+    "hold_stop_on_subagents": {
+      "value": false,
+      "description": "When true, the Stop hook blocks when sub-agents are running (existing behavior). When false, the Stop hook allows stopping even with sub-agents running."
+    }
+  },
+  "audit_log": {
+    "2026-10-26T22:55:20.603489+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "in_progress",
+      "timestamp": "2026-10-26T22:55:20.603489+00:00"
+    },
+    "2026-10-26T22:55:21.838745+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-26T22:55:21.838745+00:00"
+    },
+    "2026-10-26T22:56:20.883715+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-26T22:56:20.883715+00:00"
+    },
+    "2026-10-26T22:56:29.559223+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-26T22:56:29.559223+00:00"
+    },
+    "2026-10-26T22:56:30.703929+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-26T22:56:30.703929+00:00"
+    },
+    "2026-10-26T22:56:31.893497+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-26T22:56:31.893497+00:00"
+    },
+    "2026-10-26T22:56:33.036342+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "publish_public_key_on_pages_03eee369",
+      "decision": "completed",
+      "timestamp": "2026-10-26T22:56:33.036342+00:00"
+    },
+    "2026-10-26T23:16:41.246830+00:00": {
+      "id": "obs_without_nvenc_6847b012",
+      "path": "/works/children/components/children/comp_misc/children/obs_without_nvenc_6847b012",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-26T23:16:41.246830+00:00"
+    },
+    "2026-10-26T23:19:21.698839+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "proposed",
+      "timestamp": "2026-10-26T23:19:21.698839+00:00"
+    },
+    "2026-10-26T23:19:21.698840+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "approve",
+      "timestamp": "2026-10-26T23:19:21.698840+00:00"
+    },
+    "2026-10-26T23:19:22.853221+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "approved",
+      "timestamp": "2026-10-26T23:19:22.853221+00:00"
+    },
+    "2026-10-26T23:19:22.853222+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "in_progress",
+      "timestamp": "2026-10-26T23:19:22.853222+00:00"
+    },
+    "2026-10-26T23:19:24.018219+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-26T23:19:24.018219+00:00"
+    },
+    "2026-10-26T23:20:00.245581+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-26T23:20:00.245581+00:00"
+    },
+    "2026-10-26T23:44:41.512175+00:00": {
+      "id": "builder_hardening_flags_7ebbc3dd",
+      "path": "/works/children/components/children/comp_cli_tooling/children/builder_hardening_flags_7ebbc3dd",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-26T23:44:41.512175+00:00"
+    },
+    "2026-10-26T23:44:52.371673+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "proposed",
+      "timestamp": "2026-10-26T23:44:52.371673+00:00"
+    },
+    "2026-10-26T23:44:52.371674+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "approve",
+      "timestamp": "2026-10-26T23:44:52.371674+00:00"
+    },
+    "2026-10-26T23:47:39.405742+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-26T23:47:39.405742+00:00"
+    },
+    "2026-10-26T23:47:40.586344+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-26T23:47:40.586344+00:00"
+    },
+    "2026-10-26T23:47:41.745518+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-26T23:47:41.745518+00:00"
+    },
+    "2026-10-26T23:47:42.917372+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_without_nvenc_6847b012",
+      "decision": "completed",
+      "timestamp": "2026-10-26T23:47:42.917372+00:00"
+    },
+    "2026-10-26T23:47:58.075506+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "approved",
+      "timestamp": "2026-10-26T23:47:58.075506+00:00"
+    },
+    "2026-10-26T23:47:58.075507+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "in_progress",
+      "timestamp": "2026-10-26T23:47:58.075507+00:00"
+    },
+    "2026-10-26T23:47:59.252475+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-26T23:47:59.252475+00:00"
+    },
+    "2026-10-26T23:51:13.867694+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-26T23:51:13.867694+00:00"
+    },
+    "2026-10-26T23:51:15.074752+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-26T23:51:15.074752+00:00"
+    },
+    "2026-10-26T23:51:16.244835+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-26T23:51:16.244835+00:00"
+    },
+    "2026-10-26T23:51:17.452403+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-26T23:51:17.452403+00:00"
+    },
+    "2026-10-26T23:51:18.517523+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "builder_hardening_flags_7ebbc3dd",
+      "decision": "completed",
+      "timestamp": "2026-10-26T23:51:18.517523+00:00"
+    },
+    "2026-10-26T23:52:02.853929+00:00": {
+      "id": "snapshot_gate_cron_c3e7f01b",
+      "path": "/works/children/components/children/comp_misc/children/snapshot_gate_cron_c3e7f01b",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-26T23:52:02.853929+00:00"
+    },
+    "2026-10-26T23:52:03.890632+00:00": {
+      "id": "selective_rebuild_6f7af27e",
+      "path": "/works/children/components/children/comp_misc/children/selective_rebuild_6f7af27e",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-26T23:52:03.890632+00:00"
+    },
+    "2026-10-26T23:52:52.928297+00:00": {
+      "id": "set_rpm_vendor_f3967814",
+      "path": "/works/children/components/children/comp_misc/children/set_rpm_vendor_f3967814",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-26T23:52:52.928297+00:00"
+    },
+    "2026-10-26T23:53:35.477670+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "proposed",
+      "timestamp": "2026-10-26T23:53:35.477670+00:00"
+    },
+    "2026-10-26T23:53:35.477671+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "approve",
+      "timestamp": "2026-10-26T23:53:35.477671+00:00"
+    },
+    "2026-10-26T23:53:36.015476+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "proposed",
+      "timestamp": "2026-10-26T23:53:36.015476+00:00"
+    },
+    "2026-10-26T23:53:36.015477+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "approve",
+      "timestamp": "2026-10-26T23:53:36.015477+00:00"
+    },
+    "2026-10-26T23:53:36.558097+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "proposed",
+      "timestamp": "2026-10-26T23:53:36.558097+00:00"
+    },
+    "2026-10-26T23:53:36.558098+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "approve",
+      "timestamp": "2026-10-26T23:53:36.558098+00:00"
+    },
+    "2026-10-26T23:53:46.175816+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "approved",
+      "timestamp": "2026-10-26T23:53:46.175816+00:00"
+    },
+    "2026-10-26T23:53:46.175817+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "in_progress",
+      "timestamp": "2026-10-26T23:53:46.175817+00:00"
+    },
+    "2026-10-26T23:53:47.011754+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-26T23:53:47.011754+00:00"
+    },
+    "2026-10-26T23:54:26.670913+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-26T23:54:26.670913+00:00"
+    },
+    "2026-10-26T23:54:27.852584+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-26T23:54:27.852584+00:00"
+    },
+    "2026-10-26T23:54:29.021073+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-26T23:54:29.021073+00:00"
+    },
+    "2026-10-26T23:54:29.831409+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-26T23:54:29.831409+00:00"
+    },
+    "2026-10-26T23:54:30.447652+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "set_rpm_vendor_f3967814",
+      "decision": "completed",
+      "timestamp": "2026-10-26T23:54:30.447652+00:00"
+    },
+    "2026-10-26T23:54:31.051345+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "approved",
+      "timestamp": "2026-10-26T23:54:31.051345+00:00"
+    },
+    "2026-10-26T23:54:31.051346+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "in_progress",
+      "timestamp": "2026-10-26T23:54:31.051346+00:00"
+    },
+    "2026-10-26T23:54:31.661335+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-26T23:54:31.661335+00:00"
+    },
+    "2026-10-26T23:55:57.194358+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-26T23:55:57.194358+00:00"
+    },
+    "2026-10-26T23:55:58.159574+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-26T23:55:58.159574+00:00"
+    },
+    "2026-10-26T23:55:59.147001+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-26T23:55:59.147001+00:00"
+    },
+    "2026-10-26T23:56:00.307711+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-26T23:56:00.307711+00:00"
+    },
+    "2026-10-26T23:56:01.358719+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "snapshot_gate_cron_c3e7f01b",
+      "decision": "completed",
+      "timestamp": "2026-10-26T23:56:01.358719+00:00"
+    },
+    "2026-10-26T23:56:44.819680+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "approved",
+      "timestamp": "2026-10-26T23:56:44.819680+00:00"
+    },
+    "2026-10-26T23:56:44.819681+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "in_progress",
+      "timestamp": "2026-10-26T23:56:44.819681+00:00"
+    },
+    "2026-10-26T23:56:45.759240+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-26T23:56:45.759240+00:00"
+    },
+    "2026-10-27T00:06:17.064662+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-27T00:06:17.064662+00:00"
+    },
+    "2026-10-27T00:06:18.326337+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-27T00:06:18.326337+00:00"
+    },
+    "2026-10-27T00:06:19.455539+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-27T00:06:19.455539+00:00"
+    },
+    "2026-10-27T00:06:20.710247+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-27T00:06:20.710247+00:00"
+    },
+    "2026-10-27T00:06:21.965086+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "selective_rebuild_6f7af27e",
+      "decision": "completed",
+      "timestamp": "2026-10-27T00:06:21.965086+00:00"
+    },
+    "2026-10-27T00:08:08.293706+00:00": {
+      "id": "build32_infrastructure_517e2401",
+      "path": "/works/children/components/children/comp_misc/children/build32_infrastructure_517e2401",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-27T00:08:08.293706+00:00"
+    },
+    "2026-10-27T00:08:09.071985+00:00": {
+      "id": "build32_ffmpeg8_libheif_b7909083",
+      "path": "/works/children/components/children/comp_misc/children/build32_ffmpeg8_libheif_b7909083",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-27T00:08:09.071985+00:00"
+    },
+    "2026-10-27T00:08:10.091991+00:00": {
+      "id": "build32_mesa_9df070ae",
+      "path": "/works/children/components/children/comp_misc/children/build32_mesa_9df070ae",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-27T00:08:10.091991+00:00"
+    },
+    "2026-10-27T00:09:31.200474+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_infrastructure_517e2401",
+      "decision": "proposed",
+      "timestamp": "2026-10-27T00:09:31.200474+00:00"
+    },
+    "2026-10-27T00:09:31.200475+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_infrastructure_517e2401",
+      "decision": "approve",
+      "timestamp": "2026-10-27T00:09:31.200475+00:00"
+    },
+    "2026-10-27T00:09:32.183666+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_ffmpeg8_libheif_b7909083",
+      "decision": "proposed",
+      "timestamp": "2026-10-27T00:09:32.183666+00:00"
+    },
+    "2026-10-27T00:09:32.183667+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_ffmpeg8_libheif_b7909083",
+      "decision": "approve",
+      "timestamp": "2026-10-27T00:09:32.183667+00:00"
+    },
+    "2026-10-27T00:09:33.074075+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_mesa_9df070ae",
+      "decision": "proposed",
+      "timestamp": "2026-10-27T00:09:33.074075+00:00"
+    },
+    "2026-10-27T00:09:33.074076+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_mesa_9df070ae",
+      "decision": "approve",
+      "timestamp": "2026-10-27T00:09:33.074076+00:00"
+    },
+    "2026-10-27T00:09:35.305203+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_infrastructure_517e2401",
+      "decision": "approved",
+      "timestamp": "2026-10-27T00:09:35.305203+00:00"
+    },
+    "2026-10-27T00:09:35.305204+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_infrastructure_517e2401",
+      "decision": "in_progress",
+      "timestamp": "2026-10-27T00:09:35.305204+00:00"
+    },
+    "2026-10-27T00:09:36.488420+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_infrastructure_517e2401",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-27T00:09:36.488420+00:00"
+    },
+    "2026-10-27T00:24:06.865582+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "build32_infrastructure_517e2401",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-27T00:24:06.865582+00:00"
+    },
+    "2026-10-27T00:44:30.875673+00:00": {
+      "id": "build32_mesa_9df070ae",
+      "path": "/works/children/components/children/comp_misc/children/build32_mesa_9df070ae",
+      "type": "work",
+      "op": "delete",
+      "timestamp": "2026-10-27T00:44:30.875673+00:00"
+    },
+    "2026-10-27T00:44:33.462147+00:00": {
+      "id": "build32_ffmpeg8_libheif_b7909083",
+      "path": "/works/children/components/children/comp_misc/children/build32_ffmpeg8_libheif_b7909083",
+      "type": "work",
+      "op": "delete",
+      "timestamp": "2026-10-27T00:44:33.462147+00:00"
+    },
+    "2026-10-27T00:44:35.504874+00:00": {
+      "id": "build32_infrastructure_517e2401",
+      "path": "/works/children/components/children/comp_misc/children/build32_infrastructure_517e2401",
+      "type": "work",
+      "op": "delete",
+      "timestamp": "2026-10-27T00:44:35.504874+00:00"
+    },
+    "2026-10-27T00:45:24.319187+00:00": {
+      "id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "path": "/works/children/components/children/comp_misc/children/obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-27T00:45:24.319187+00:00"
+    },
+    "2026-10-27T00:45:37.630731+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "proposed",
+      "timestamp": "2026-10-27T00:45:37.630731+00:00"
+    },
+    "2026-10-27T00:45:37.630732+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "approve",
+      "timestamp": "2026-10-27T00:45:37.630732+00:00"
+    },
+    "2026-10-27T00:45:38.742254+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "approved",
+      "timestamp": "2026-10-27T00:45:38.742254+00:00"
+    },
+    "2026-10-27T00:45:38.742255+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "in_progress",
+      "timestamp": "2026-10-27T00:45:38.742255+00:00"
+    },
+    "2026-10-27T00:45:39.662202+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-27T00:45:39.662202+00:00"
+    },
+    "2026-10-27T00:46:53.719760+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-27T00:46:53.719760+00:00"
+    },
+    "2026-10-27T00:52:16.034698+00:00": {
+      "id": "cron_every_15_minutes_18f1f94c",
+      "path": "/works/children/components/children/comp_misc/children/cron_every_15_minutes_18f1f94c",
+      "type": "work",
+      "op": "add",
+      "timestamp": "2026-10-27T00:52:16.034698+00:00"
+    },
+    "2026-10-27T00:52:27.158113+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "proposed",
+      "timestamp": "2026-10-27T00:52:27.158113+00:00"
+    },
+    "2026-10-27T00:52:27.158114+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "approve",
+      "timestamp": "2026-10-27T00:52:27.158114+00:00"
+    },
+    "2026-10-27T01:12:13.064010+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-27T01:12:13.064010+00:00"
+    },
+    "2026-10-27T01:12:20.259453+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-27T01:12:20.259453+00:00"
+    },
+    "2026-10-27T01:12:21.063753+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-27T01:12:21.063753+00:00"
+    },
+    "2026-10-27T01:12:21.962922+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "obs_drop_vlc_and_32bit_cleanup_263e91bc",
+      "decision": "completed",
+      "timestamp": "2026-10-27T01:12:21.962922+00:00"
+    },
+    "2026-10-27T01:12:22.971412+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "approved",
+      "timestamp": "2026-10-27T01:12:22.971412+00:00"
+    },
+    "2026-10-27T01:12:22.971413+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "in_progress",
+      "timestamp": "2026-10-27T01:12:22.971413+00:00"
+    },
+    "2026-10-27T01:12:24.020799+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "implement_work:understand_auto->implement",
+      "timestamp": "2026-10-27T01:12:24.020799+00:00"
+    },
+    "2026-10-27T01:13:13.557606+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "implement_work:implement->verify",
+      "timestamp": "2026-10-27T01:13:13.557606+00:00"
+    },
+    "2026-10-27T01:13:14.300186+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "implement_work:verify->review",
+      "timestamp": "2026-10-27T01:13:14.300186+00:00"
+    },
+    "2026-10-27T01:13:15.146006+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "implement_work:review->reinforce_insights",
+      "timestamp": "2026-10-27T01:13:15.146006+00:00"
+    },
+    "2026-10-27T01:13:16.068022+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "implement_work:reinforce_insights->commit",
+      "timestamp": "2026-10-27T01:13:16.068022+00:00"
+    },
+    "2026-10-27T01:13:16.985440+00:00": {
+      "type": "decision",
+      "session_id": "7622ff50-5dfd-4f54-813a-c768a54afb92",
+      "item_id": "cron_every_15_minutes_18f1f94c",
+      "decision": "completed",
+      "timestamp": "2026-10-27T01:13:16.985440+00:00"
+    }
+  },
+  "contradiction_gate_outcomes": null,
+  "user_extension": null
+}
