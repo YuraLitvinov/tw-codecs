@@ -1,0 +1,12 @@
+name = "packmanless-snapshot-watcher"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+GITHUB_REPO = "YuraLitvinov/tw-codecs"
+GITHUB_REF = "main"
+WORKFLOW = "build-matrix.yml"
+

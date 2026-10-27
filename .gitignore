@@ -15,3 +15,5 @@ hooks_log/
 github-pages-rpm-repo/
 .protected_files.txt
 executable_graph.k.md
+worker/src/.secret
+worker/.wrangler/cache/wrangler-account.json
