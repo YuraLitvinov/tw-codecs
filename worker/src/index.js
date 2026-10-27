@@ -5,9 +5,10 @@
 // snapshot.txt, so a spurious dispatch is cheap and harmless.
 //
 // The Worker keeps no state: it dispatches whenever the current id differs from snapshot.txt on
-// the default branch (written by the workflow's `record` job after a successful publish). While
-// a build runs or keeps failing, every tick dispatches again; the workflow's concurrency group
-// keeps at most one run waiting, and the GitHub schedule is the only other retry.
+// the default branch (written by the workflow's `record` job after a successful publish) and no
+// run of the workflow is queued or in progress. Without that second check every tick during a
+// multi-hour build would dispatch again. A build that fails is not recorded, so it is
+// dispatched again on the next tick after the failed run completes.
 
 const MEDIA_URL = "https://download.opensuse.org/tumbleweed/repo/oss/media.1/media";
 const ID_PATTERN = /^openSUSE-\d{8}-\S+$/;
@@ -41,12 +42,22 @@ async function recordedSnapshot(env) {
   return (await r.text()).split("\n")[0].trim();
 }
 
+// Runs that have not completed: "queued", "in_progress", "waiting", "pending", "requested".
+async function activeRuns(env) {
+  const r = await github(env, `actions/workflows/${env.WORKFLOW}/runs?per_page=20`);
+  if (!r.ok) throw new Error(`listing runs: HTTP ${r.status}`);
+  return (await r.json()).workflow_runs.filter((run) => run.status !== "completed");
+}
+
 export async function check(env) {
   const media = await fetch(MEDIA_URL, { cf: { cacheTtl: 0 } });
   if (!media.ok) throw new Error(`media.1/media: HTTP ${media.status}`);
   const current = parseMedia(await media.text());
 
   if (current === (await recordedSnapshot(env))) return `up to date (${current})`;
+
+  const active = await activeRuns(env);
+  if (active.length) return `build already running (${current}, run ${active[0].id})`;
 
   const r = await github(env, `actions/workflows/${env.WORKFLOW}/dispatches`, {
     method: "POST",
