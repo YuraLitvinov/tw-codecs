@@ -1,9 +1,11 @@
 # Source packages to build: plain name (any case), then optional ENV=VAL build options.
 # Names found in the openSUSE Tumbleweed OSS source repo are downloaded by build_all.py;
 # the rest come from the .src.rpm assets of a release of this repository. Build order is
-# derived from BuildRequires, not from the order of this file. x265 is not listed: its
-# -devel and runtime (libx265-216) come from the VideoLAN repo in the Dockerfile.
-# Options are the variables build-srpm.sh reads: WITH WITHOUT SPEC_PATCH DEFINES NOCHECK FLAVORS.
+# derived from BuildRequires, not from the order of this file. libx264 and libx265 come from the
+# VideoLAN repo in the Dockerfile.
+# Options for build-srpm.sh: WITH WITHOUT SPEC_PATCH DEFINES NOCHECK FLAVORS BASELIBS.
+# Options for build_all.py: ARCH ('64' default, '32' = publish only the -32bit RPMs, or '64 32')
+# and SRC=videolan (take the SRPM from VideoLAN's repo instead of openSUSE or a release).
 mesa SPEC_PATCH=ci/mesa-radeon.sed DEFINES=BUILD_ORIG=1
 mesa-drivers SPEC_PATCH=ci/mesa-radeon.sed DEFINES=BUILD_ORIG=1
 libheif WITH=x264
@@ -12,7 +14,6 @@ obs-studio
 SVT-AV1
 libde265
 vvenc
-fdk-aac
 faac
 gstreamer-plugins-bad-codecs
 gstreamer-plugins-ugly-codecs

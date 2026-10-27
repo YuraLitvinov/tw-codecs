@@ -185,18 +185,44 @@ class Stages(unittest.TestCase):
             build_all.split_stages(["a", "b", "c"], edges)
         self.assertIn("deeper than two stages", str(ctx.exception))
 
-    def test_matrix_prints_only_the_json_on_stdout(self):
-        edges = {"faac": {}, "bad": {"faac": "faac-devel"}}
+    SOURCES = {"faac": ("faac-1.src.rpm", "h1"), "bad": ("bad-1.src.rpm", "h2")}
+
+    def run_matrix(self, argv, edges, sources=None, state=None, order=("faac", "bad")):
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.object(build_all, "load_packages", return_value=[("bad", {}), ("faac", {})]), \
+        sources = sources or self.SOURCES
+        with mock.patch.object(build_all, "load_packages", return_value=[(n, {}) for n in order]), \
                 mock.patch.object(build_all, "make_official", return_value=None), \
                 mock.patch.object(build_all, "fetch_all", side_effect=lambda p: print("fetched noise")), \
-                mock.patch.object(build_all, "resolve", return_value=(["faac", "bad"], edges, {})), \
+                mock.patch.object(build_all, "resolve", return_value=(list(order), edges, {})), \
+                mock.patch.object(build_all, "current_sources", return_value=sources), \
+                mock.patch.object(build_all.snapshot, "read_sources", return_value=state or {}), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = build_all.main(["--matrix"])
+            code = build_all.main(["--matrix", *argv])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_matrix_prints_only_the_json_on_stdout(self):
+        code, out, err = self.run_matrix([], {"faac": {}, "bad": {"faac": "faac-devel"}})
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(out.getvalue()), {"stage1": ["faac"], "stage2": ["bad"]})
-        self.assertIn("fetched noise", err.getvalue())
+        plan = json.loads(out)
+        self.assertEqual(plan["stage1"], [{"name": "faac", "carry": ""}])
+        self.assertEqual(plan["stage2"], [{"name": "bad", "carry": ""}])
+        self.assertEqual(plan["dirty"], ["faac", "bad"])
+        self.assertIn("fetched noise", err)
+
+    def test_matrix_with_matching_state_lists_nothing(self):
+        code, out, _ = self.run_matrix([], {"faac": {}, "bad": {"faac": "c"}}, state=dict(self.SOURCES))
+        self.assertEqual(json.loads(out), {"stage1": [], "stage2": [], "dirty": [], "carry": ["faac", "bad"]})
+
+    def test_matrix_all_ignores_the_state(self):
+        _, out, _ = self.run_matrix(["--all"], {"faac": {}, "bad": {}}, state=dict(self.SOURCES))
+        self.assertEqual([e["name"] for e in json.loads(out)["stage1"]], ["faac", "bad"])
+
+    def test_matrix_write_state_stores_the_current_sources(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "built-sources.txt")
+            with mock.patch.object(build_all.snapshot, "write_sources") as write:
+                self.run_matrix(["--write-state", path], {"faac": {}, "bad": {}})
+            write.assert_called_once_with(path, self.SOURCES)
 
     def test_image_build_keeps_podman_stdout_off_our_stdout(self):
         with mock.patch.object(build_all.subprocess, "run") as run, contextlib.redirect_stdout(io.StringIO()):
@@ -212,9 +238,12 @@ class Stages(unittest.TestCase):
                 mock.patch.object(build_all, "make_official", side_effect=fake_make_official), \
                 mock.patch.object(build_all, "fetch_all"), \
                 mock.patch.object(build_all, "resolve", return_value=(["a", "b"], {"a": {}, "b": {}}, {})), \
+                mock.patch.object(build_all, "current_sources", return_value={"a": ("a", "h"), "b": ("b", "h")}), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            build_all.main(["--matrix"])
-        self.assertEqual(json.loads(out.getvalue()), {"stage1": ["a", "b"], "stage2": []})
+            build_all.main(["--matrix", "--state", "/nonexistent/built-sources.txt"])
+        plan = json.loads(out.getvalue())
+        self.assertEqual([e["name"] for e in plan["stage1"]], ["a", "b"])
+        self.assertEqual(plan["stage2"], [])
 
     def test_only_selects_one_package_case_insensitively(self):
         seen = {}
@@ -275,6 +304,243 @@ class PublicKey(unittest.TestCase):
     def test_something_that_is_not_a_key_is_refused(self):
         with self.assertRaises(build_all.BuildError):
             build_all.check_public_key(b"hello", "x")
+
+
+PRIMARY = (
+    '<metadata xmlns="http://linux.duke.edu/metadata/common" xmlns:rpm="http://linux.duke.edu/metadata/rpm">'
+    '<package type="rpm"><name>libavcodec63</name><arch>x86_64</arch><location href="libavcodec63-9.0.2-4.2.x86_64.rpm"/>'
+    '<format><rpm:sourcerpm>ffmpeg-9-9.0.2-4.2.src.rpm</rpm:sourcerpm></format></package>'
+    '<package type="rpm"><name>libvvenc1_14</name><arch>x86_64</arch><location href="libvvenc1_14-1.14.0-1.x86_64.rpm"/>'
+    '<format><rpm:sourcerpm>vvenc-1.14.0-1699.2.pm.2.src.rpm</rpm:sourcerpm></format></package>'
+    '<package type="rpm"><name>Mesa-dri</name><arch>x86_64</arch><location href="Mesa-dri-26.2.5-1.1.x86_64.rpm"/>'
+    '<format><rpm:sourcerpm>Mesa-drivers-26.2.5-1.1.src.rpm</rpm:sourcerpm></format></package>'
+    '</metadata>'
+).encode()
+
+
+class PublishedSite(unittest.TestCase):
+    def test_source_name_drops_version_and_release(self):
+        self.assertEqual(fetch_srpms.source_name("ffmpeg-9-9.0.2-4.2.src.rpm"), "ffmpeg-9")
+        self.assertEqual(fetch_srpms.source_name("libx264-20250608.b35605ac-1699.1.pm.18.src.rpm"), "libx264")
+
+    def fake_fetch(self, url, headers=None):
+        if url.endswith("repomd.xml"):
+            return b'<repomd xmlns="http://linux.duke.edu/metadata/repo"><data type="primary"><location href="repodata/p.xml"/></data></repomd>'
+        if url.endswith("repodata/p.xml"):
+            return PRIMARY
+        return b"rpm-bytes:" + url.rsplit("/", 1)[-1].encode()
+
+    def test_published_rpms_map_each_rpm_to_its_package(self):
+        with mock.patch.object(fetch_srpms, "fetch", side_effect=self.fake_fetch):
+            rpms = fetch_srpms.published_rpms("https://x.github.io/repo-name/")
+        self.assertEqual({r["file"]: r["source"] for r in rpms},
+                         {"libavcodec63-9.0.2-4.2.x86_64.rpm": "ffmpeg-9",
+                          "libvvenc1_14-1.14.0-1.x86_64.rpm": "vvenc",
+                          "Mesa-dri-26.2.5-1.1.x86_64.rpm": "Mesa-drivers"})
+
+    def test_carry_over_downloads_only_the_wanted_packages_case_insensitively(self):
+        with tempfile.TemporaryDirectory() as dest, mock.patch.object(fetch_srpms, "fetch", side_effect=self.fake_fetch):
+            done, missing = fetch_srpms.carry_over("https://x.github.io/r", {"mesa-drivers", "vvenc", "faac"}, dest)
+            self.assertEqual(sorted(done), ["Mesa-dri-26.2.5-1.1.x86_64.rpm", "libvvenc1_14-1.14.0-1.x86_64.rpm"])
+            self.assertEqual(missing, ["faac"])
+            self.assertEqual(sorted(os.listdir(dest)), sorted(done))
+            self.assertFalse(os.path.exists(os.path.join(dest, "libavcodec63-9.0.2-4.2.x86_64.rpm")))
+
+    def test_carry_over_skips_files_already_there(self):
+        with tempfile.TemporaryDirectory() as dest, mock.patch.object(fetch_srpms, "fetch", side_effect=self.fake_fetch):
+            open(os.path.join(dest, "libvvenc1_14-1.14.0-1.x86_64.rpm"), "w").close()
+            done, _ = fetch_srpms.carry_over("https://x.github.io/r", {"vvenc"}, dest)
+            self.assertEqual(done, [])
+
+
+class PlanMatrix(unittest.TestCase):
+    CURRENT = {"vvenc": ("v-1", "h"), "ffmpeg": ("f-1", "h"), "faac": ("fa-1", "h"), "bad": ("b-1", "h")}
+    EDGES = {"vvenc": {}, "faac": {}, "ffmpeg": {"vvenc": "vvenc-devel"}, "bad": {"faac": "faac-devel", "vvenc": "x"}}
+    ORDER = ["vvenc", "faac", "ffmpeg", "bad"]
+
+    def plan(self, built, everything=False):
+        return build_all.plan_matrix(self.ORDER, self.EDGES, self.CURRENT, built, everything)
+
+    def test_unchanged_builds_nothing_and_carries_everything(self):
+        plan = self.plan(dict(self.CURRENT))
+        self.assertEqual((plan["stage1"], plan["stage2"], plan["dirty"]), ([], [], []))
+        self.assertEqual(plan["carry"], self.ORDER)
+
+    def test_a_changed_dependency_rebuilds_its_dependents_in_stage2(self):
+        built = dict(self.CURRENT, vvenc=("v-0", "h"))
+        plan = self.plan(built)
+        self.assertEqual([e["name"] for e in plan["stage1"]], ["vvenc"])
+        self.assertEqual([e["name"] for e in plan["stage2"]], ["ffmpeg", "bad"])
+        self.assertEqual(plan["carry"], ["faac"])
+        # bad needs faac, which is not rebuilt, so its published RPMs are carried into the build
+        self.assertEqual({e["name"]: e["carry"] for e in plan["stage2"]}, {"ffmpeg": "", "bad": "faac"})
+
+    def test_a_changed_dependent_alone_waits_for_nothing_and_carries_its_dependency(self):
+        built = dict(self.CURRENT, ffmpeg=("f-0", "h"))
+        plan = self.plan(built)
+        # nothing it needs is rebuilt in this run, so it is stage1; vvenc's published RPMs come along
+        self.assertEqual(plan["stage1"], [{"name": "ffmpeg", "carry": "vvenc"}])
+        self.assertEqual(plan["stage2"], [])
+        self.assertEqual(plan["carry"], ["vvenc", "faac", "bad"])
+
+    def test_everything_flag_rebuilds_all(self):
+        plan = self.plan(dict(self.CURRENT), everything=True)
+        self.assertEqual(plan["dirty"], self.ORDER)
+        self.assertEqual(plan["carry"], [])
+
+    def test_no_state_rebuilds_all(self):
+        self.assertEqual(self.plan({})["dirty"], self.ORDER)
+
+    def test_split_names_accepts_spaces_and_commas(self):
+        self.assertEqual(build_all.split_names("a b,c  d"), ["a", "b", "c", "d"])
+        self.assertEqual(build_all.split_names(None), [])
+        self.assertEqual(build_all.split_names(""), [])
+
+    def test_current_sources_prefers_oss_then_releases_and_hashes_the_config(self):
+        packages = [("mesa", {"SPEC_PATCH": "ci/mesa-radeon.sed"}), ("vvenc", {})]
+        with mock.patch.object(fetch_srpms, "oss_source_files", return_value={"mesa": "Mesa-1.src.rpm"}), \
+                mock.patch.object(fetch_srpms, "release_source_files", return_value={"vvenc": "vvenc-1.src.rpm"}) as rel:
+            sources = build_all.current_sources(packages)
+        rel.assert_called_once_with({"vvenc"})
+        self.assertEqual((sources["mesa"][0], sources["vvenc"][0]), ("Mesa-1.src.rpm", "vvenc-1.src.rpm"))
+        self.assertNotEqual(sources["mesa"][1], sources["vvenc"][1])
+
+    def test_current_sources_errors_when_a_name_is_nowhere(self):
+        with mock.patch.object(fetch_srpms, "oss_source_files", return_value={}), \
+                mock.patch.object(fetch_srpms, "release_source_files", return_value={}):
+            with self.assertRaises(build_all.BuildError) as ctx:
+                build_all.current_sources([("vvenc", {})])
+        self.assertIn("vvenc", str(ctx.exception))
+
+
+class CarryOver(unittest.TestCase):
+    def test_stage_only_carries_into_out_all_before_staging(self):
+        calls = []
+        with mock.patch.object(build_all, "carry_rpms", side_effect=lambda *a: calls.append(("carry", a))), \
+                mock.patch.object(build_all, "stage_site", side_effect=lambda: calls.append(("stage",))):
+            code = build_all.main(["--stage-only", "--carry-over", "https://x/y", "--carry", "mesa faac"])
+        self.assertEqual(code, 0)
+        self.assertEqual(calls[0], ("carry", ("https://x/y", ["mesa", "faac"], os.path.join(build_all.ROOT, "out-all"))))
+        self.assertEqual(calls[1], ("stage",))
+
+    def test_only_carries_into_the_deps_directory(self):
+        with mock.patch.object(build_all, "carry_rpms") as carry, \
+                mock.patch.object(build_all, "load_packages", return_value=[("ffmpeg-9", {})]), \
+                mock.patch.object(build_all, "fetch_all"), \
+                mock.patch.object(build_all, "resolve", return_value=(["ffmpeg-9"], {"ffmpeg-9": {}}, {"ffmpeg-9": "x"})), \
+                mock.patch.object(build_all, "build_all"), \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = build_all.main(["--only", "ffmpeg-9", "--deps", "deps", "--carry-over", "https://x/y", "--carry", "vvenc"])
+        self.assertEqual(code, 0)
+        carry.assert_called_once_with("https://x/y", ["vvenc"], "deps")
+
+    def test_carry_without_a_destination_is_an_error(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(build_all.main(["--only", "x", "--carry-over", "https://x", "--carry", "a"]), 1)
+
+    def test_no_carry_names_means_no_download(self):
+        with mock.patch.object(build_all, "carry_rpms") as carry, mock.patch.object(build_all, "stage_site"):
+            build_all.main(["--stage-only", "--carry-over", "https://x/y", "--carry", ""])
+        carry.assert_not_called()
+
+    def test_missing_published_rpms_is_an_error_naming_the_package(self):
+        with mock.patch.object(build_all.fetch_srpms, "carry_over", return_value=([], ["faac"])):
+            with self.assertRaises(build_all.BuildError) as ctx:
+                build_all.carry_rpms("https://x", ["faac"], "d")
+        self.assertIn("faac", str(ctx.exception))
+
+
+class Options32(unittest.TestCase):
+    def packages(self, text):
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+            f.write(text)
+        try:
+            return build_all.load_packages(f.name)
+        finally:
+            os.unlink(f.name)
+
+    def test_arch_and_src_are_accepted(self):
+        pk = self.packages('vvenc ARCH="64 32"\nfdk-aac SRC=videolan ARCH=32\nfaac\n')
+        self.assertEqual(pk[0][1], {"ARCH": "64 32"})
+        self.assertEqual(pk[1][1], {"SRC": "videolan", "ARCH": "32"})
+
+    def test_bad_arch_is_rejected(self):
+        for bad in ("ARCH=16", 'ARCH="32 16"', 'ARCH=""'):
+            with self.assertRaises(build_all.BuildError, msg=bad):
+                self.packages(f"x {bad}\n")
+
+    def test_bad_src_is_rejected(self):
+        with self.assertRaises(build_all.BuildError):
+            self.packages("x SRC=elsewhere\n")
+
+    def test_baselibs_file_must_exist(self):
+        with self.assertRaises(build_all.BuildError):
+            self.packages("x BASELIBS=ci/baselibs/does-not-exist.conf\n")
+        with tempfile.NamedTemporaryFile("w", suffix=".conf") as conf:
+            self.assertEqual(self.packages(f"x BASELIBS={conf.name}\n")[0][1], {"BASELIBS": conf.name})
+
+    def test_container_command_maps_arch_and_hides_src(self):
+        cmd = build_all.container_cmd("podman", "x", os.path.join(build_all.ROOT, "srpms/videolan/x-1.src.rpm"),
+                                      {"ARCH": "64 32", "SRC": "videolan", "BASELIBS": "ci/baselibs/x264.conf"})
+        self.assertIn("ARCHES=64 32", cmd)
+        self.assertIn("BASELIBS=/in/ci/baselibs/x264.conf", cmd)
+        self.assertFalse([c for c in cmd if c.startswith(("ARCH=", "SRC="))])
+        self.assertEqual(cmd[-1], "/in/srpms/videolan/x-1.src.rpm")
+
+    def test_find_srpm_keeps_videolan_downloads_apart(self):
+        with tempfile.TemporaryDirectory() as root:
+            for rel in ("srpms/fdk-aac-2.0.3-1699.2.pm.4.src.rpm", "srpms/videolan/fdk-aac-2.0.3.git.160-2.3.src.rpm"):
+                os.makedirs(os.path.join(root, os.path.dirname(rel)), exist_ok=True)
+                open(os.path.join(root, rel), "w").close()
+            self.assertEqual(os.path.basename(build_all.find_srpm("fdk-aac", root, src="videolan")),
+                             "fdk-aac-2.0.3.git.160-2.3.src.rpm")
+            self.assertEqual(os.path.basename(build_all.find_srpm("fdk-aac", root)),
+                             "fdk-aac-2.0.3-1699.2.pm.4.src.rpm")
+
+    def test_current_sources_reads_videolan_for_src_videolan_only(self):
+        calls = []
+        def fake_oss(names, base=None):
+            calls.append((sorted(names), base))
+            return {n: f"{n}-1.src.rpm" for n in names}
+        with mock.patch.object(fetch_srpms, "oss_source_files", side_effect=fake_oss), \
+                mock.patch.object(fetch_srpms, "release_source_files", return_value={}):
+            sources = build_all.current_sources([("x264", {"SRC": "videolan", "ARCH": "32"}), ("mesa", {})])
+        self.assertEqual(calls, [(["x264"], fetch_srpms.VIDEOLAN_BASE), (["mesa"], None)])
+        self.assertEqual(sources["x264"][0], "x264-1.src.rpm")
+
+    def test_arch_and_baselibs_change_the_config_hash(self):
+        def h(env):
+            with mock.patch.object(fetch_srpms, "oss_source_files", return_value={"p": "p-1.src.rpm"}), \
+                    mock.patch.object(fetch_srpms, "release_source_files", return_value={}):
+                return build_all.current_sources([("p", env)])["p"][1]
+        base = h({})
+        self.assertNotEqual(base, h({"ARCH": "32"}))
+        with tempfile.TemporaryDirectory() as d:
+            a, b = os.path.join(d, "a.conf"), os.path.join(d, "b.conf")
+            open(a, "w").write("libfoo1\n")
+            open(b, "w").write("libbar2\n")
+            self.assertNotEqual(h({"BASELIBS": a}), h({"BASELIBS": b}))
+
+    def test_a_32bit_consumer_keeps_its_edge_to_a_32bit_provider_even_if_a_repo_has_the_64bit(self):
+        reqs = {"heif": ["pkgconfig(x264)"], "x264": []}
+        provs = {"heif": set(), "x264": {"pkgconfig(x264)"}}
+        packages = [("heif", {"ARCH": "64 32"}), ("x264", {"ARCH": "32"})]
+        with mock.patch.object(build_all, "find_srpm", return_value="s"), \
+                mock.patch.object(build_all, "spec_info",
+                                  side_effect=[(reqs["heif"], provs["heif"]), (reqs["x264"], provs["x264"])]):
+            order, edges, _ = build_all.resolve(packages, official=lambda caps: set(caps))
+        self.assertEqual(edges["heif"], {"x264": "pkgconfig(x264)"})
+        self.assertEqual(order, ["x264", "heif"])
+
+    def test_a_64bit_only_consumer_still_drops_the_edge(self):
+        reqs = {"ff": ["pkgconfig(x264)"], "x264": []}
+        provs = {"ff": set(), "x264": {"pkgconfig(x264)"}}
+        packages = [("ff", {}), ("x264", {"ARCH": "32"})]
+        with mock.patch.object(build_all, "find_srpm", return_value="s"), \
+                mock.patch.object(build_all, "spec_info",
+                                  side_effect=[(reqs["ff"], provs["ff"]), (reqs["x264"], provs["x264"])]):
+            _, edges, _ = build_all.resolve(packages, official=lambda caps: set(caps))
+        self.assertEqual(edges["ff"], {})
 
 
 class Building(unittest.TestCase):

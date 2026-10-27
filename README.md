@@ -71,6 +71,31 @@ sudo rpm --import https://YuraLitvinov.github.io/tw-codecs/RPM-GPG-KEY
 sudo zypper ar -f -p 90 https://YuraLitvinov.github.io/tw-codecs/repo/ tw-codecs
 ```
 
+## Snapshots and selective rebuilds
+
+The workflow runs on a schedule (every 15 minutes; GitHub may delay a run) and does nothing
+unless something changed:
+
+1. `ci/snapshot.py` reads the current openSUSE Tumbleweed snapshot id (`media.1/media`) and
+   compares it with `snapshot.txt`. Same id: the run ends there.
+2. On a new snapshot, `build_all.py --matrix` compares each package's source RPM file name and
+   build configuration (its line in `ci/packages.txt`, its `SPEC_PATCH`, the `Dockerfile` and
+   `build-srpm.sh`) with `built-sources.txt`. Only packages that differ, and the packages that
+   depend on them, are rebuilt. A new snapshot rarely touches ours.
+3. The other packages keep the RPMs they already have: `--carry-over` downloads them from the
+   published site, so every run still publishes the complete repository.
+4. After a successful publish, the `record` job commits `snapshot.txt` and `built-sources.txt`.
+   A failed build records nothing, so the next scheduled run tries again.
+
+A weekly run (Monday 03:00 UTC), or a manual run with `full`, rebuilds everything. That catches an
+ABI change in a VideoLAN or openSUSE `-devel` package, which the per-package check cannot see.
+A manual run builds even if the snapshot is unchanged unless you untick `force`.
+
+```
+python3 ci/snapshot.py current            # the current snapshot id
+python3 build_all.py --matrix --state built-sources.txt   # what would be rebuilt
+```
+
 ## GitHub Actions
 
 `.github/workflows/build-matrix.yml` builds each package as its own matrix job in two

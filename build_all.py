@@ -20,8 +20,17 @@ Steps (default is all of them):
 --matrix          fetch, then print {"stage1": [...], "stage2": [...]} as JSON for a CI matrix:
                   stage2 packages need a stage1 package built first; exits 1 if the chain
                   is deeper than two stages. Logs go to stderr.
+--state FILE      with --matrix: what was built last time (default built-sources.txt); only the
+                  packages whose source RPM or build configuration changed, and the packages
+                  that depend on them, are listed ("dirty"); stage entries are
+                  {"name": ..., "carry": "deps not rebuilt"}
+--all             with --matrix: list every package, whatever the state says
+--write-state F   with --matrix: write the sources this plan is based on to F, for the record job
 --only NAME       fetch and build only that package and skip staging (one CI matrix job)
 --deps DIR        RPMs from earlier stages; mounted read-only at /deps in the container
+--carry-over URL  download the published site's RPMs of the packages named by --carry into
+                  --deps DIR (with --only) or out-all/ (with --stage-only)
+--carry NAMES     the packages whose RPMs to carry over, separated by spaces or commas
 --stage-only      skip fetch and build, stage site/ from the RPMs already in out-all/
 --serve           serve site/ on http://localhost:8080/ when done and print the zypper command
 
@@ -47,6 +56,7 @@ from typing import Callable
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ROOT, "ci"))
 import fetch_srpms  # noqa: E402
+import snapshot  # noqa: E402
 
 IMAGE = "srpm-builder"
 SRPMS = "srpms"
@@ -54,7 +64,11 @@ OUT = "out-all"
 SITE = "site"
 PORT = 8080
 # build-srpm.sh variables a packages.txt line may set.
-OPTION_VARS = {"WITH", "WITHOUT", "SPEC_PATCH", "DEFINES", "NOCHECK", "FLAVORS"}
+OPTION_VARS = {"WITH", "WITHOUT", "SPEC_PATCH", "DEFINES", "NOCHECK", "FLAVORS", "BASELIBS"}
+# Options for build_all.py itself, not passed to build-srpm.sh as it is.
+OWN_OPTIONS = {"ARCH", "SRC"}
+ARCH_VALUES = {"64", "32"}
+SRC_VALUES = {"videolan"}
 
 
 class BuildError(Exception):
@@ -77,9 +91,13 @@ def pick_srpm(name: str, candidates: list[str]) -> str | None:
     return max(found, key=lambda c: version_key(srpm_version(os.path.basename(c), name)))
 
 
-def find_srpm(name: str, root: str | None = None) -> str | None:
-    """Newest source RPM of `name` in srpms/, where fetch_all puts every download."""
-    directory = os.path.join(root or ROOT, SRPMS)
+def find_srpm(name: str, root: str | None = None, src: str | None = None) -> str | None:
+    """Newest source RPM of `name` in srpms/, where fetch_all puts every download.
+
+    Packages with SRC=videolan are kept in srpms/videolan/, so a same-named SRPM from another
+    source (a release, openSUSE) is never mistaken for it.
+    """
+    directory = os.path.join(root or ROOT, SRPMS, *([src] if src else []))
     files = [os.path.join(directory, f) for f in os.listdir(directory)] if os.path.isdir(directory) else []
     return pick_srpm(name, files)
 
@@ -224,11 +242,20 @@ def pkgconfig_caps(parsed_spec: str) -> set[str]:
 def load_packages(path: str) -> list[tuple[str, dict[str, str]]]:
     with open(path) as f:
         packages = fetch_srpms.parse_packages(f.read())
+    allowed = OPTION_VARS | OWN_OPTIONS
     for name, env in packages:
-        unknown = set(env) - OPTION_VARS
+        unknown = set(env) - allowed
         if unknown:
             raise BuildError(f"{name}: unknown option(s) {', '.join(sorted(unknown))}; "
-                             f"allowed: {', '.join(sorted(OPTION_VARS))}")
+                             f"allowed: {', '.join(sorted(allowed))}")
+        arches = env.get("ARCH", "64").split()
+        if not arches or not set(arches) <= ARCH_VALUES:
+            raise BuildError(f"{name}: ARCH must be '64', '32' or '64 32', not {env['ARCH']!r}")
+        if env.get("SRC", "videolan") not in SRC_VALUES:
+            raise BuildError(f"{name}: SRC must be one of {', '.join(sorted(SRC_VALUES))}, not {env['SRC']!r}")
+        for key in ("SPEC_PATCH", "BASELIBS"):
+            if env.get(key) and not os.path.isfile(env[key] if os.path.isabs(env[key]) else os.path.join(ROOT, env[key])):
+                raise BuildError(f"{name}: {key} file {env[key]!r} does not exist")
     return packages
 
 
@@ -272,6 +299,10 @@ def make_official(require_image: bool) -> Callable[[set[str]], set[str]] | None:
     return functools.partial(official_provides, engine)
 
 
+def builds_32bit(env: dict[str, str]) -> bool:
+    return "32" in env.get("ARCH", "64").split()
+
+
 def resolve(packages: list[tuple[str, dict[str, str]]],
             official: Callable[[set[str]], set[str]] | None = None
             ) -> tuple[list[str], dict[str, dict[str, str]], dict[str, str]]:
@@ -281,8 +312,8 @@ def resolve(packages: list[tuple[str, dict[str, str]]],
     for those are dropped.
     """
     srpms: dict[str, str] = {}
-    for name, _ in packages:
-        path = find_srpm(name)
+    for name, env in packages:
+        path = find_srpm(name, src=env.get("SRC"))
         if not path:
             raise BuildError(f"no source RPM for {name!r} in {SRPMS}/; run without --plan to download it "
                              f"from openSUSE OSS or from a release of {fetch_srpms.RELEASE_REPO}")
@@ -299,6 +330,12 @@ def resolve(packages: list[tuple[str, dict[str, str]]],
             if cap in provided:
                 print(f"{pkg} does not wait for {owner}: {cap} comes from an official repo", file=sys.stderr)
     edges = build_edges(reqs, provs, satisfied)
+    # "An official repo provides it" only holds for the 64-bit build. A 32-bit build needs the
+    # -32bit packages, which only our own build of the provider makes, so that edge stays.
+    envs = dict(packages)
+    for pkg, owner, cap in matches:
+        if satisfied and satisfied(cap) and builds_32bit(envs[pkg]) and builds_32bit(envs[owner]):
+            edges[pkg].setdefault(owner, cap)
     return order_packages([n for n, _ in packages], edges), edges, srpms
 
 
@@ -342,7 +379,11 @@ def container_cmd(engine: str, name: str, srpm: str, env: dict[str, str], deps: 
     if deps:
         cmd += ["-v", f"{os.path.abspath(deps)}:/deps:ro,Z", "-e", "DEPS_REPO=/deps"]
     for key, val in env.items():
-        if key == "SPEC_PATCH" and not os.path.isabs(val):
+        if key == "SRC":
+            continue  # only decides where build_all.py gets the SRPM
+        if key == "ARCH":
+            key = "ARCHES"
+        if key in ("SPEC_PATCH", "BASELIBS") and not os.path.isabs(val):
             val = "/in/" + val
         cmd += ["-e", f"{key}={val}"]
     return cmd + [IMAGE, "/in/" + os.path.relpath(srpm, ROOT)]
@@ -488,9 +529,23 @@ def serve() -> None:
 
 
 def fetch_all(packages: list[tuple[str, dict[str, str]]]) -> None:
-    """Put the newest source RPM of every package in srpms/: openSUSE OSS first, then releases."""
+    """Put the newest source RPM of every package in srpms/.
+
+    Packages with SRC=videolan come from VideoLAN's repo; the others from openSUSE OSS, and
+    what OSS lacks from the releases of this repository.
+    """
     outdir = os.path.join(ROOT, SRPMS)
-    downloaded, not_in_oss = fetch_srpms.fetch_srpms({n for n, _ in packages}, outdir)
+    from_videolan = {n for n, env in packages if env.get("SRC") == "videolan"}
+    downloaded: list[str] = []
+    absent: list[str] = []
+    if from_videolan:
+        got, missing = fetch_srpms.fetch_srpms(from_videolan, os.path.join(outdir, "videolan"),
+                                               base=fetch_srpms.VIDEOLAN_BASE)
+        downloaded += got
+        absent += [n for n in missing if not find_srpm(n, src="videolan")]
+    others = {n for n, _ in packages} - from_videolan
+    got, not_in_oss = fetch_srpms.fetch_srpms(others, outdir)
+    downloaded += got
     if not_in_oss:
         print("not in openSUSE OSS, looking in releases of "
               f"{fetch_srpms.RELEASE_REPO}: " + ", ".join(not_in_oss))
@@ -501,10 +556,81 @@ def fetch_all(packages: list[tuple[str, dict[str, str]]]) -> None:
             print(f"warning: cannot read the releases of {fetch_srpms.RELEASE_REPO}: {e}", file=sys.stderr)
     for fn in downloaded:
         print(f"fetched {fn}")
-    absent = [n for n in not_in_oss if not find_srpm(n)]
+    absent += [n for n in not_in_oss if not find_srpm(n)]
     if absent:
         raise BuildError(f"no source RPM for {', '.join(absent)}: add the .src.rpm to a release of "
-                         f"{fetch_srpms.RELEASE_REPO} (or put it in {SRPMS}/)")
+                         f"{fetch_srpms.RELEASE_REPO} (or put it in {SRPMS}/); a package with "
+                         "SRC=videolan must exist in VideoLAN's repo")
+
+
+def read_text(path: str) -> str:
+    with open(path) as f:
+        return f.read()
+
+
+def current_sources(packages: list[tuple[str, dict[str, str]]]) -> snapshot.Sources:
+    """For each package: the source RPM available now and a hash of its build configuration.
+
+    The file names come from the OSS source repo's metadata and the release assets, so nothing is
+    downloaded. The hash covers the package's options, its SPEC_PATCH file, the Dockerfile and
+    build-srpm.sh: a change to any of them rebuilds the package.
+    """
+    names = {n for n, _ in packages}
+    from_videolan = {n for n, env in packages if env.get("SRC") == "videolan"}
+    files = fetch_srpms.oss_source_files(from_videolan, fetch_srpms.VIDEOLAN_BASE) if from_videolan else {}
+    others = names - from_videolan
+    files.update(fetch_srpms.oss_source_files(others))
+    rest = others - files.keys()
+    if rest:
+        files.update(fetch_srpms.release_source_files(rest))
+    missing = sorted(names - files.keys())
+    if missing:
+        raise BuildError(f"no source RPM for {', '.join(missing)} in openSUSE OSS, VideoLAN (where SRC=videolan) "
+                         f"or a release of {fetch_srpms.RELEASE_REPO}")
+    shared = {"Dockerfile": read_text(os.path.join(ROOT, "Dockerfile")),
+              "build-srpm.sh": read_text(os.path.join(ROOT, "build-srpm.sh"))}
+    sources = {}
+    for name, env in packages:
+        inputs = dict(shared)
+        for key in ("SPEC_PATCH", "BASELIBS"):
+            if env.get(key):
+                path = env[key]
+                inputs[key] = read_text(path if os.path.isabs(path) else os.path.join(ROOT, path))
+        sources[name] = (files[name], snapshot.config_hash(name, env, inputs))
+    return sources
+
+
+def plan_matrix(order: list[str], edges: dict[str, dict[str, str]], current: snapshot.Sources,
+                built: snapshot.Sources, everything: bool = False) -> dict:
+    """The CI plan: which packages to rebuild, in which stage, and which RPMs to carry over.
+
+    A package is rebuilt when its source or configuration changed since `built`, or when it
+    depends on one that is (or when `everything`). A rebuilt package may depend on one that is
+    not rebuilt; that dependency's published RPMs are listed in its "carry" so the build can use them.
+    """
+    dirty = set(current) if everything else snapshot.dirty_packages(current, built, edges)
+    rebuilt = [n for n in order if n in dirty]
+    among_rebuilt = {n: {d: c for d, c in edges.get(n, {}).items() if d in dirty} for n in rebuilt}
+    stage1, stage2 = split_stages(rebuilt, among_rebuilt)
+
+    def entry(name: str) -> dict[str, str]:
+        return {"name": name, "carry": " ".join(sorted(d for d in edges.get(name, {}) if d not in dirty))}
+
+    return {"stage1": [entry(n) for n in stage1], "stage2": [entry(n) for n in stage2],
+            "dirty": rebuilt, "carry": [n for n in order if n not in dirty]}
+
+
+def split_names(text: str | None) -> list[str]:
+    return [n for n in re.split(r"[,\s]+", text or "") if n]
+
+
+def carry_rpms(site_url: str, names: list[str], dest: str) -> None:
+    """Copy the published RPMs of `names` into dest; fail if the site has none for a name."""
+    downloaded, missing = fetch_srpms.carry_over(site_url, set(names), dest)
+    if missing:
+        raise BuildError(f"the published site has no RPMs built from {', '.join(missing)}: "
+                         "run a full rebuild (the 'full' input) to publish them")
+    print(f"carried over {len(downloaded)} RPMs for {', '.join(names)}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -514,11 +640,25 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--matrix", action="store_true", help="print the CI stages as JSON and exit")
     ap.add_argument("--only", metavar="NAME", help="fetch and build just this package, no staging")
     ap.add_argument("--deps", metavar="DIR", help="RPMs from earlier stages, mounted at /deps")
+    ap.add_argument("--state", metavar="FILE", default=os.path.join(ROOT, "built-sources.txt"),
+                    help="what was built last time (built-sources.txt)")
+    ap.add_argument("--all", action="store_true", help="with --matrix: every package, not just changed ones")
+    ap.add_argument("--write-state", metavar="FILE", help="with --matrix: write the current sources to FILE")
+    ap.add_argument("--carry-over", metavar="URL", help="published site to take unchanged packages' RPMs from")
+    ap.add_argument("--carry", metavar="NAMES", help="packages whose RPMs --carry-over downloads")
     ap.add_argument("--stage-only", action="store_true", help="stage site/ from the RPMs in out-all/")
     ap.add_argument("--serve", action="store_true", help="serve site/ on localhost:8080 when done")
     ap.add_argument("--packages", default=os.path.join(ROOT, "ci/packages.txt"))
     args = ap.parse_args(argv)
     try:
+        carry = split_names(args.carry)
+        if args.carry_over and carry:
+            if args.stage_only:
+                carry_rpms(args.carry_over, carry, os.path.join(ROOT, OUT))
+            elif args.only and args.deps:
+                carry_rpms(args.carry_over, carry, args.deps)
+            else:
+                raise BuildError("--carry-over needs --stage-only, or --only together with --deps")
         if args.stage_only:
             stage_site()
         else:
@@ -532,8 +672,11 @@ def main(argv: list[str] | None = None) -> int:
                     official = None if len(packages) == 1 else make_official(require_image=True)
                     fetch_all(packages)
                     order, edges, _ = resolve(packages, official)
-                    stage1, stage2 = split_stages(order, edges)
-                print(json.dumps({"stage1": stage1, "stage2": stage2}))
+                    current = current_sources(packages)
+                    plan = plan_matrix(order, edges, current, snapshot.read_sources(args.state), args.all)
+                    if args.write_state:
+                        snapshot.write_sources(args.write_state, current)
+                print(json.dumps(plan))
                 return 0
             # With a single package there is nothing to order, so no capability queries.
             official = None if len(packages) == 1 else make_official(require_image=not args.plan)

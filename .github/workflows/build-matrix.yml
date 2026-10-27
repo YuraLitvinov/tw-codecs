@@ -7,11 +7,37 @@
 #
 # Publishing uses the Pages "GitHub Actions" source (Settings > Pages), unlike build.yml,
 # which pushes the gh-pages branch.
+#
+# The schedule checks every 15 minutes (GitHub may start a scheduled run late or skip it under
+# load, so this is approximate). A run that finds nothing new costs seconds. Concurrency keeps at
+# most one run waiting, and it sees the snapshot recorded by the run before it and stops.
+#
+# Scheduled runs only build when openSUSE has published a new Tumbleweed snapshot: the
+# `snapshot` job compares the current id with snapshot.txt, and the `record` job commits the
+# new id after a successful publish. A manual run builds regardless unless `force` is off.
+# (GitHub disables scheduled workflows in a repository with no activity for 60 days.)
+#
+# A new snapshot rarely changes our packages, so `plan` also compares each package's source RPM
+# and build configuration with built-sources.txt and rebuilds only what changed, plus whatever
+# depends on it. The RPMs of the other packages are carried over from the published site, so
+# every run still publishes the complete repository. The weekly run, and a manual run with
+# `full`, rebuild everything, which catches ABI changes in VideoLAN or openSUSE devel packages.
 name: build-matrix
 
 on:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "0 3 * * 1"   # weekly: rebuild everything
   workflow_dispatch:
-
+    inputs:
+      force:
+        description: "Build even if the openSUSE snapshot is unchanged"
+        type: boolean
+        default: true
+      full:
+        description: "Rebuild every package, not only the changed ones"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,36 +51,78 @@ concurrency:
 
 env:
   CONTAINER_ENGINE: docker
+  SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
   # Authenticates the release lookup that provides the SRPMs openSUSE does not ship.
   GITHUB_TOKEN: ${{ github.token }}
 
 jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      full: ${{ steps.check.outputs.full }}
+      snapshot: ${{ steps.check.outputs.snapshot }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare the openSUSE snapshot with snapshot.txt
+        id: check
+        env:
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
+          FULL: ${{ (github.event_name == 'workflow_dispatch' && inputs.full) || github.event.schedule == '0 3 * * 1' }}
+        run: |
+          python3 ci/snapshot.py check snapshot.txt | tee check.txt
+          cat check.txt >> "$GITHUB_OUTPUT"
+          # The weekly run and a "full" manual run build whatever the snapshot says.
+          if [ "$FORCE" = "true" ] || [ "$FULL" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=$(sed -n 's/^changed=//p' check.txt)" >> "$GITHUB_OUTPUT"
+          fi
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+
   plan:
+    needs: snapshot
+    if: ${{ needs.snapshot.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       stage1: ${{ steps.matrix.outputs.stage1 }}
       stage2: ${{ steps.matrix.outputs.stage2 }}
+      dirty: ${{ steps.matrix.outputs.dirty }}
+      carry: ${{ steps.matrix.outputs.carry }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Build the builder image
         run: docker build -t srpm-builder .
 
-      - name: Plan the stages
+      - name: Plan what to rebuild
         id: matrix
+        env:
+          FULL: ${{ needs.snapshot.outputs.full }}
         run: |
-          python3 build_all.py --matrix | tee matrix.json
-          echo "stage1=$(jq -c .stage1 matrix.json)" >> "$GITHUB_OUTPUT"
-          echo "stage2=$(jq -c .stage2 matrix.json)" >> "$GITHUB_OUTPUT"
+          all=""; [ "$FULL" = "true" ] && all="--all"
+          python3 build_all.py --matrix $all --write-state new-built-sources.txt | tee matrix.json
+          for key in stage1 stage2 dirty carry; do
+            echo "$key=$(jq -c ".$key" matrix.json)" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Keep the new state for the record job
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-sources
+          path: new-built-sources.txt
 
   stage1:
     needs: plan
+    # An empty matrix is an error, so skip the job when no package without a rebuilt dependency changed.
+    if: ${{ needs.plan.outputs.stage1 != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
-        name: ${{ fromJSON(needs.plan.outputs.stage1) }}
+        include: ${{ fromJSON(needs.plan.outputs.stage1) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -64,7 +132,11 @@ jobs:
           df -h /
 
       - name: Build ${{ matrix.name }}
-        run: python3 build_all.py --only "${{ matrix.name }}"
+        run: |
+          mkdir -p deps
+          # RPMs of dependencies that are not rebuilt in this run come from the published site.
+          python3 build_all.py --only "${{ matrix.name }}" --deps deps \
+            --carry-over "$SITE_URL" --carry "${{ matrix.carry }}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -74,14 +146,14 @@ jobs:
 
   stage2:
     needs: [plan, stage1]
-    # An empty matrix is an error, so skip the job when nothing depends on stage1.
-    if: ${{ needs.plan.outputs.stage2 != '[]' }}
+    # stage1 is skipped when empty; an empty stage2 matrix is an error, so skip it too.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.stage2 != '[]' && (needs.stage1.result == 'success' || needs.stage1.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
-        name: ${{ fromJSON(needs.plan.outputs.stage2) }}
+        include: ${{ fromJSON(needs.plan.outputs.stage2) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -98,7 +170,10 @@ jobs:
           merge-multiple: true
 
       - name: Build ${{ matrix.name }}
-        run: python3 build_all.py --only "${{ matrix.name }}" --deps deps
+        run: |
+          mkdir -p deps
+          python3 build_all.py --only "${{ matrix.name }}" --deps deps \
+            --carry-over "$SITE_URL" --carry "${{ matrix.carry }}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -107,9 +182,10 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [stage1, stage2]
-    # stage2 is skipped when empty; any failed or cancelled build stops publishing.
-    if: ${{ !cancelled() && needs.stage1.result == 'success' && (needs.stage2.result == 'success' || needs.stage2.result == 'skipped') }}
+    needs: [plan, stage1, stage2]
+    # Nothing to publish when no package changed. A stage is skipped when empty; a failed or
+    # cancelled build stops publishing.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.dirty != '[]' && (needs.stage1.result == 'success' || needs.stage1.result == 'skipped') && (needs.stage2.result == 'success' || needs.stage2.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -127,7 +203,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y createrepo-c
 
-      - name: Download all RPMs
+      - name: Download the RPMs that were rebuilt
         uses: actions/download-artifact@v4
         with:
           pattern: rpms-*
@@ -135,13 +211,17 @@ jobs:
           merge-multiple: true
 
       - name: Stage the repo (signed when GPG_PRIVATE_KEY is set)
+        env:
+          # The packages that were not rebuilt keep the RPMs they already have on the site.
+          CARRY: ${{ join(fromJSON(needs.plan.outputs.carry), ' ') }}
         run: |
+          mkdir -p out-all
           if [ -n "$GPG_PRIVATE_KEY" ]; then
             keyfile="$RUNNER_TEMP/signing-key.asc"
             (umask 077; printf '%s\n' "$GPG_PRIVATE_KEY" > "$keyfile")
             export GPG_PRIVATE_KEY_FILE="$keyfile"
           fi
-          python3 build_all.py --stage-only
+          python3 build_all.py --stage-only --carry-over "$SITE_URL" --carry "$CARRY"
           rm -f "$RUNNER_TEMP/signing-key.asc"
           ls -la site/repo | head -50
 
@@ -154,3 +234,36 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v4
+
+  record:
+    needs: [snapshot, plan, publish]
+    # After a successful publish, or when nothing changed so there was nothing to publish.
+    # A failed build is not recorded, so the next scheduled run tries again.
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.publish.result == 'success' || (needs.publish.result == 'skipped' && needs.plan.outputs.dirty == '[]')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the state this run was planned from
+        uses: actions/download-artifact@v4
+        with:
+          name: built-sources
+
+      - name: Commit the snapshot id and the built sources
+        env:
+          SNAPSHOT: ${{ needs.snapshot.outputs.snapshot }}
+        run: |
+          python3 ci/snapshot.py write snapshot.txt "$SNAPSHOT"
+          cp new-built-sources.txt built-sources.txt
+          # `git diff` ignores untracked files, so use status: the first run creates both files.
+          if [ -z "$(git status --porcelain -- snapshot.txt built-sources.txt)" ]; then
+            echo "snapshot.txt and built-sources.txt are already up to date ($SNAPSHOT)"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add snapshot.txt built-sources.txt
+          git commit -m "Record openSUSE snapshot $SNAPSHOT"
+          git push

@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 
 BASE = os.environ.get("SRC_REPO", "https://download.opensuse.org/source/tumbleweed/repo/oss/")
 RELEASE_REPO = os.environ.get("SRPM_RELEASE_REPO", "YuraLitvinov/tw-codecs")
+VIDEOLAN_BASE = os.environ.get("VIDEOLAN_REPO", "https://download.videolan.org/pub/vlc/SuSE/Tumbleweed/")
 REPO = "{http://linux.duke.edu/metadata/repo}"
 COMMON = "{http://linux.duke.edu/metadata/common}"
 
@@ -111,15 +112,18 @@ def primary_href(repomd: bytes) -> str:
     raise SystemExit("no primary metadata in repomd.xml")
 
 
-def fetch_srpms(names: set[str], outdir: str, built: set[str] = frozenset()) -> tuple[list[str], list[str]]:
-    """Download the OSS source RPM of each name into outdir.
+def fetch_srpms(names: set[str], outdir: str, built: set[str] = frozenset(),
+                base: str | None = None) -> tuple[list[str], list[str]]:
+    """Download the source RPM of each name from a repository's metadata into outdir.
 
-    Returns (downloaded file names, names not found in OSS). Files listed in `built`
+    `base` is the repository (default: the OSS source repo; VIDEOLAN_BASE is the other one).
+    Returns (downloaded file names, names not found there). Files listed in `built`
     or already present in outdir are skipped.
     """
+    base = base or BASE
     os.makedirs(outdir, exist_ok=True)
-    href = primary_href(fetch(BASE + "repodata/repomd.xml"))
-    found = parse_primary(decompress(href, fetch(BASE + href)), names)
+    href = primary_href(fetch(base + "repodata/repomd.xml"))
+    found = parse_primary(decompress(href, fetch(base + href)), names)
     downloaded = []
     for name, loc in sorted(found.items()):
         fn = os.path.basename(loc)
@@ -127,7 +131,7 @@ def fetch_srpms(names: set[str], outdir: str, built: set[str] = frozenset()) -> 
             print(f"up to date: {fn}", file=sys.stderr)
             continue
         with open(os.path.join(outdir, fn), "wb") as f:
-            f.write(fetch(BASE + loc))
+            f.write(fetch(base + loc))
         downloaded.append(fn)
     return downloaded, sorted(names - found.keys())
 
@@ -180,6 +184,79 @@ def fetch_release_srpms(names: set[str], outdir: str, repo: str = RELEASE_REPO) 
             f.write(fetch(asset["url"], release_headers("application/octet-stream")))
         downloaded.append(asset["name"])
     return downloaded, sorted(names - picked.keys())
+
+
+def oss_source_files(names: set[str], base: str | None = None) -> dict[str, str]:
+    """The source RPM file name each name has in a source repo right now (no download).
+
+    The default is the OSS source repo; pass VIDEOLAN_BASE for VideoLAN's.
+    """
+    base = base or BASE
+    href = primary_href(fetch(base + "repodata/repomd.xml"))
+    found = parse_primary(decompress(href, fetch(base + href)), names)
+    return {name: os.path.basename(loc) for name, loc in found.items()}
+
+
+def release_source_files(names: set[str], repo: str = RELEASE_REPO) -> dict[str, str]:
+    """The newest release asset file name per name (no download)."""
+    return {name: asset["name"] for name, asset in pick_assets(names, release_assets(repo)).items()}
+
+
+# --- RPMs already published on the Pages site --------------------------------------------
+
+RPM_NS = "{http://linux.duke.edu/metadata/rpm}"
+
+
+def source_name(sourcerpm: str) -> str:
+    """Package name of a source RPM file name: 'ffmpeg-9-9.0.2-4.2.src.rpm' -> 'ffmpeg-9'."""
+    return sourcerpm.rsplit("-", 2)[0]
+
+
+def published_rpms(site_url: str) -> list[dict[str, str]]:
+    """The RPMs of the repository published under site_url (its repo/ directory).
+
+    Each entry has 'file', 'href' (relative to repo/) and 'source', the package it was built from.
+    """
+    base = site_url.rstrip("/") + "/repo/"
+    href = primary_href(fetch(base + "repodata/repomd.xml"))
+    xml = decompress(href, fetch(base + href))
+    rpms = []
+    for _, el in ET.iterparse(io.BytesIO(xml)):
+        if el.tag != COMMON + "package":
+            continue
+        loc = el.find(COMMON + "location").get("href")
+        sourcerpm = el.findtext(f"{COMMON}format/{RPM_NS}sourcerpm") or ""
+        rpms.append({"file": os.path.basename(loc), "href": loc,
+                     "source": source_name(sourcerpm) if sourcerpm else ""})
+        el.clear()
+    return rpms
+
+
+def carry_over(site_url: str, names: set[str], dest: str) -> tuple[list[str], list[str]]:
+    """Download the published RPMs built from `names` into dest, so a run that rebuilds only
+    some packages still publishes all of them.
+
+    Returns (downloaded file names, names that have no published RPM). Files already in dest
+    are skipped. Names match the source package name case-insensitively.
+    """
+    os.makedirs(dest, exist_ok=True)
+    by_lower = {n.lower(): n for n in names}
+    wanted: dict[str, list[dict[str, str]]] = {}
+    for rpm in published_rpms(site_url):
+        name = by_lower.get(rpm["source"].lower())
+        if name:
+            wanted.setdefault(name, []).append(rpm)
+    base = site_url.rstrip("/") + "/repo/"
+    downloaded = []
+    for name in sorted(wanted):
+        for rpm in wanted[name]:
+            path = os.path.join(dest, rpm["file"])
+            if os.path.exists(path):
+                continue
+            with open(path, "wb") as f:
+                f.write(fetch(base + urllib.parse.quote(rpm["href"])))
+            downloaded.append(rpm["file"])
+    return downloaded, sorted(names - wanted.keys())
 
 
 def main() -> None:
